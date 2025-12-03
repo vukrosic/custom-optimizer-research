@@ -130,7 +130,7 @@ class DynamicRoutingModel(nn.Module):
         attn_model = GatedDeltaNetForCausalLM(fla_config)
         
         # Extract components
-        self.embed_tokens = gdn_model.model.embed_tokens
+        self.embeddings = gdn_model.model.embeddings
         self.norm = gdn_model.model.norm
         self.lm_head = gdn_model.lm_head
         
@@ -176,7 +176,7 @@ class DynamicRoutingModel(nn.Module):
         batch_size, seq_len = input_ids.shape
         
         # Embed
-        x = self.embed_tokens(input_ids)
+        x = self.embeddings(input_ids)
         
         # Layer 0: Fixed GDN
         x = self.layer_0_gdn(x)[0]
@@ -202,12 +202,15 @@ class DynamicRoutingModel(nn.Module):
         # Layer 1: ROUTED
         out_1_gdn = self.layer_1_gdn(x)[0]
         out_1_attn = self.layer_1_attn(x)[0]
-        x = route_layer_1[..., 0:1] * out_1_gdn + route_layer_1[..., 1:2] * out_1_attn
+        # Ensure routing weights match hidden state dtype
+        route_1 = route_layer_1.to(x.dtype)
+        x = route_1[..., 0:1] * out_1_gdn + route_1[..., 1:2] * out_1_attn
         
         # Layer 2: ROUTED
         out_2_gdn = self.layer_2_gdn(x)[0]
         out_2_attn = self.layer_2_attn(x)[0]
-        x = route_layer_2[..., 0:1] * out_2_gdn + route_layer_2[..., 1:2] * out_2_attn
+        route_2 = route_layer_2.to(x.dtype)
+        x = route_2[..., 0:1] * out_2_gdn + route_2[..., 1:2] * out_2_attn
         
         # Layer 3: Fixed Softmax
         x = self.layer_3_attn(x)[0]

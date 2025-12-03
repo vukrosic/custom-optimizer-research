@@ -1,0 +1,16 @@
+{
+  "experiment": "exp11_dynamic_routing",
+  "config_name": "baseline",
+  "config": {
+    "use_dynamic_routing": false,
+    "routed_layers": [],
+    "hidden_size": 768,
+    "num_layers": 4,
+    "learning_rate": 0.001,
+    "load_balance_alpha": 0.0
+  },
+  "results": {
+    "total_time": 8.20310378074646,
+    "best_val_loss": 7.4473488666911045
+  }
+}
