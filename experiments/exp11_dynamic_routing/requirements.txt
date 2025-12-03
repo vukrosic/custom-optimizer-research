@@ -1,0 +1,5 @@
+flash-attn --no-build-isolation
+datasets
+transformers
+torch
+einops
