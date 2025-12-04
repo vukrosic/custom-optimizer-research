@@ -8,16 +8,29 @@
 \usepackage{hyperref}
 \usepackage{xcolor}
 
-% Setup for code listings
+% Setup for code listings with enhanced styling
 \lstset{
     basicstyle=\ttfamily\small,
+    backgroundcolor=\color{gray!10},           % Light gray background
     breaklines=true,
     frame=single,
-    keywordstyle=\color{blue},
-    commentstyle=\color{gray},
-    stringstyle=\color{green!50!black},
+    framesep=4pt,                               % Padding inside frame
+    frameround=tttt,                            % Rounded corners
+    rulecolor=\color{gray!40},                  % Frame color
+    keywordstyle=\color{purple!80!black}\bfseries,      % Purple keywords (bold)
+    commentstyle=\color{teal!60!black}\itshape,         % Teal comments (italic)
+    stringstyle=\color{orange!90!black},                % Orange strings
+    identifierstyle=\color{black},              % Regular identifiers in black
+    emphstyle=\color{red!70!black}\bfseries,    % Emphasis in red
     showstringspaces=false,
-    language=Python
+    numbers=left,                               % Line numbers on the left
+    numberstyle=\tiny\color{gray},              % Small gray line numbers
+    numbersep=8pt,                              % Space between numbers and code
+    tabsize=4,
+    language=Python,
+    xleftmargin=15pt,                           % Left margin
+    xrightmargin=5pt,                           % Right margin
+    captionpos=b                                % Caption position at bottom
 }
 
 \title{Adaptive Selection between Linear and Full Attention Layers for Every Token}
