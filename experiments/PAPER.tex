@@ -177,7 +177,7 @@ This confirms the hypothesis: the model \textit{can} learn to allocate different
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.9\linewidth]{images/routing_distribution.png}
+    \includegraphics[width=0.9\linewidth]{routing_analysis/routing_distribution.png}
     \caption{Routing Distribution Across Layers. Both layers show a preference for Linear (GDN) attention ($\sim$60\%), but reserve $\sim$40\% of tokens for the more expensive Softmax mechanism, indicating learned selectivity rather than uniform routing.}
     \label{fig:routing_distribution}
 \end{figure}
@@ -198,7 +198,7 @@ Several interesting patterns emerge:
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=\linewidth]{images/token_routing_heatmap.png}
+    \includegraphics[width=\linewidth]{routing_analysis/token_routing_heatmap.png}
     \caption{Token-Level Routing Decisions. Blue indicates Linear Attention (GDN), Red indicates Softmax Attention. The heatmap shows layer-specific routing patterns where Layer 1 and Layer 2 make complementary decisions.}
     \label{fig:routing_heatmap}
 \end{figure}
@@ -217,7 +217,7 @@ This sharp decision boundary has important implications:
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=\linewidth]{images/routing_confidence.png}
+    \includegraphics[width=\linewidth]{routing_analysis/routing_confidence.png}
     \caption{Routing Confidence Per Token. The bar charts show softmax probabilities for each token in both layers. Colors indicate the selected mechanism (red = Softmax, blue = Linear). The router makes extremely confident decisions with probabilities consistently at $\sim$1.0, indicating a sharp learned distinction between token types.}
     \label{fig:routing_confidence}
 \end{figure}
