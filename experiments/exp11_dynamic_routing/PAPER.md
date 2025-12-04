@@ -34,9 +34,36 @@ To simplify the implementation, **parallel routing** is used: the router compute
 
 A critical challenge is **routing collapse**, where the model defaults to 100% usage of one mechanism (a layer learns more because it's choosen more - starting a vicious cycle). To counter this, we apply a load balancing loss adapted from the **Switch Transformer**.
 
-This auxiliary loss minimizes the dot product between the fraction of tokens routed to each expert ($f_i$) and the average router probability for that expert ($P_i$):
+#### The Math: Measuring Balance
+We track two metrics for our $N=2$ experts:
+1.  **$f$ (The Actual Workload):** What fraction of tokens did we *actually* assign to each expert?
+    *   *Example:* If we have 100 tokens and send 90 to Linear, $f = [0.9, 0.1]$.
+2.  **$P$ (The Manager's Bias):** What was the average probability (confidence) the router had for each expert?
+    *   *Example:* If the router was generally 90% sure about Linear, $P = [0.9, 0.1]$.
+
+We want both vectors to be close to uniform ($[0.5, 0.5]$). The Switch Transformer paper defines the loss as the scaled dot product:
 $$ \mathcal{L}_{balance} = N \cdot \sum_{i=1}^{N} f_i \cdot P_i $$
-where $N=2$ is the number of choices. This objective is minimized when both the routing decisions and the router's probabilities are uniformly distributed, effectively preventing the router from ignoring one path. (See **Appendix A** for a detailed derivation and explanation).
+
+*   **Balanced Case:** $f=[0.5, 0.5], P=[0.5, 0.5]$. Loss $= 2 \cdot (0.25 + 0.25) = \mathbf{1.0}$. (Minimum)
+*   **Collapsed Case:** $f=[1.0, 0.0], P=[1.0, 0.0]$. Loss $= 2 \cdot (1.0 + 0.0) = \mathbf{2.0}$. (Maximum)
+
+#### Integration into Training
+This auxiliary loss is added to the main objective with a small coefficient ($\alpha=0.01$) so it doesn't overpower the main goal of predicting the next token.
+
+```python
+# 1. Calculate standard language modeling loss
+lm_loss = F.cross_entropy(logits, labels)
+
+# 2. Calculate load balancing loss
+aux_loss = self.compute_load_balancing_loss([
+    router_probs_layer_1,
+    router_probs_layer_2
+])
+
+# 3. Combine them
+# alpha=0.01 ensures we just nudge the router, not force it
+loss = lm_loss + 0.01 * aux_loss
+```
 
 ---
 
@@ -91,36 +118,4 @@ The results highlight a fundamental trade-off in efficient AI:
 
 This work has demonstrated a working proof-of-concept for dynamic token routing in Linear Transformers. By accepting higher training complexity, an adaptive inference engine is gained that intelligently allocates FLOPs. Future work will scale this to billions of parameters, where the savings from routing "easy" tokens away from quadratic attention could yield massive efficiency gains.
 
----
 
-### The Math (How do we measure balance?)
-We track two metrics for our $N=2$ experts:
-1.  **$f$ (The Actual Workload):** What fraction of tokens did we *actually* assign to each expert?
-    *   *Example:* If we have 100 tokens and send 90 to Linear, $f = [0.9, 0.1]$.
-2.  **$P$ (The Manager's Bias):** What was the average probability (confidence) the router had for each expert?
-    *   *Example:* If the router was generally 90% sure about Linear, $P = [0.9, 0.1]$.
-
-We want both vectors to be close to uniform ($[0.5, 0.5]$). The Switch Transformer paper defines the loss as the scaled dot product:
-$$ \mathcal{L} = N \cdot \sum_{i=1}^{N} f_i \cdot P_i $$
-
-*   **Balanced Case:** $f=[0.5, 0.5], P=[0.5, 0.5]$. Loss $= 2 \cdot (0.25 + 0.25) = \mathbf{1.0}$. (Minimum)
-*   **Collapsed Case:** $f=[1.0, 0.0], P=[1.0, 0.0]$. Loss $= 2 \cdot (1.0 + 0.0) = \mathbf{2.0}$. (Maximum)
-
-
-### Integration (The Training Loop)
-Finally, we add this auxiliary loss to our main objective. We use a small coefficient ($\alpha=0.01$) so it doesn't overpower the main goal of predicting the next token.
-
-```python
-# 1. Calculate standard language modeling loss
-lm_loss = F.cross_entropy(logits, labels)
-
-# 2. Calculate load balancing loss
-aux_loss = self.compute_load_balancing_loss([
-    router_probs_layer_1,
-    router_probs_layer_2
-])
-
-# 3. Combine them
-# alpha=0.01 ensures we just nudge the router, not force it
-loss = lm_loss + 0.01 * aux_loss
-```
