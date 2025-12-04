@@ -229,4 +229,25 @@ The results highlight a fundamental trade-off in efficient AI:
 
 This work has demonstrated a working proof-of-concept for dynamic token routing in Linear Transformers. By accepting higher training complexity, an adaptive inference engine is gained that intelligently allocates FLOPs.
 
+\section{Future Work}
+
+While this proof-of-concept demonstrates the feasibility of learned routing, several intriguing questions remain:
+
+\begin{enumerate}
+    \item \textbf{Why is routing confidence so extreme?} As shown in Figure~\ref{fig:routing_confidence}, the router makes decisions with probabilities consistently at $\sim$1.0. What feature space has the router discovered that enables such sharp separation?
+    
+    \item \textbf{Why do simple tokens receive expensive attention?} The observation that structural tokens like periods and commas route to Softmax (Figure~\ref{fig:routing_heatmap}) is counterintuitive. Are these tokens serving as ``anchors'' for global context aggregation? Does this pattern emerge from the sequential nature of the router, or is it a fundamental requirement for maintaining coherent representations?
+    
+    \item \textbf{Can this approach scale?} This experiment used a $\sim$160M parameter model trained for 1500 steps. Critical scaling questions include:
+    \begin{itemize}
+        \item Does the routing pattern remain stable at billion-parameter scale?
+        \item How does the optimal load balancing coefficient $\alpha$ change with model size?
+        \item Will larger models learn more nuanced routing strategies, or converge to simpler heuristics?
+    \end{itemize}
+    
+    \item \textbf{Alternative routing granularities:} This work routes at the token level. Would routing entire sequences, sentences, or batches to different attention mechanisms be more efficient? What is the optimal granularity for the routing decision?
+    
+    \item \textbf{Token-type analysis:} A systematic analysis of which syntactic and semantic categories (nouns, verbs, function words, named entities) prefer which attention mechanisms could reveal linguistic insights and guide architectural improvements.
+\end{enumerate}
+
 \end{document}
