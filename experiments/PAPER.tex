@@ -1,0 +1,186 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{hyperref}
+\usepackage{xcolor}
+
+% Setup for code listings
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    keywordstyle=\color{blue},
+    commentstyle=\color{gray},
+    stringstyle=\color{green!50!black},
+    showstringspaces=false,
+    language=Python
+}
+
+\title{Adaptive Attention Selection: A Proof-of-Concept for Dynamic Routing in Linear Transformers}
+\author{}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This paper proposes a dynamic routing mechanism that selects between linear ($O(n)$) and softmax ($O(n^2)$) attention on a per-token basis. While linear attention offers efficiency, it often lacks the attention (detail retrieval and understanding) power of full softmax attention. This approach allows the model to adaptively allocate compute: using fast linear attention for ``easy'' tokens and computationally intensive softmax attention for ``hard'' tokens. This introduces a trade-off: increased training complexity (teaching the router) in exchange for optimized inference (allocating FLOPs where needed). This concept is validated with a proof-of-concept 4-layer model, demonstrating that a stable, balanced routing strategy can be learned.
+\end{abstract}
+
+\section{Introduction}
+
+The core inefficiency of Large Language Models lies in treating every token with the same computational budget. ``The cat sat on the...'' requires less reasoning than a complex logic puzzle, yet standard Transformers spend $O(n^2)$ attention on both. Linear attention mechanisms (like Gated DeltaNet) offer $O(n)$ speed but often degrade performance.
+
+It is hypothesized that a ``best of both worlds'' architecture exists: a model that dynamically routes tokens to the most appropriate attention mechanism.
+\begin{itemize}
+    \item \textbf{Training:} More expensive. The model must learn \textit{how} to route, not just \textit{what} to predict.
+    \item \textbf{Inference:} Optimized. The model saves compute on simple tokens (routing to Linear) and invests it in complex ones (routing to Softmax).
+\end{itemize}
+
+This paper presents a \textbf{proof-of-concept} implementation of this dynamic routing. It is shown that with proper load balancing, a small-scale model can learn a non-trivial routing strategy that matches the convergence of a static hybrid baseline.
+
+\section{Method}
+
+\subsection{Architecture}
+A lightweight 4-layer architecture is used to test the routing mechanism:
+\begin{itemize}
+    \item \textbf{Layer 0 (Fixed):} Gated DeltaNet (GDN). Provides a stable linear foundation.
+    \item \textbf{Layers 1 \& 2 (Routed):} Dynamic choice between GDN and Softmax.
+    \item \textbf{Layer 3 (Fixed):} Softmax. Ensures global context aggregation at the end.
+\end{itemize}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\linewidth]{architecture.png}
+    \caption{Architecture Diagram}
+    \label{fig:architecture}
+\end{figure}
+
+\subsection{Parallel Routing \& Load Balancing}
+To simplify the implementation, \textbf{parallel routing} is used: the router computes decisions for all routed layers simultaneously after Layer 0. A \textbf{Gumbel-Softmax} distribution is used to make the discrete routing decisions differentiable during training. This technique relaxes the discrete sampling process into a continuous, differentiable approximation, allowing gradients to flow through the routing decisions during backpropagation.
+
+A critical challenge is \textbf{routing collapse}, where the model defaults to 100\% usage of one mechanism (a layer learns more because it's chosen more - starting a vicious cycle). To counter this, we apply a load balancing loss adapted from the \textbf{Switch Transformer}.
+
+\subsubsection{The Math: Measuring Balance}
+We track two metrics for our $N=2$ experts:
+\begin{enumerate}
+    \item \textbf{$f$ (The Actual Workload):} What fraction of tokens did we \textit{actually} assign to each expert?
+    \begin{itemize}
+        \item \textit{Example:} If we have 100 tokens and send 90 to Linear, $f = [0.9, 0.1]$.
+    \end{itemize}
+    \item \textbf{$P$ (The Manager's Bias):} What was the average probability (confidence) the router had for each expert?
+    \begin{itemize}
+        \item \textit{Example:} If the router was generally 90\% sure about Linear, $P = [0.9, 0.1]$.
+    \end{itemize}
+\end{enumerate}
+
+We want both vectors to be close to uniform ($[0.5, 0.5]$). The Switch Transformer paper defines the loss as the scaled dot product:
+\[ \mathcal{L}_{balance} = N \cdot \sum_{i=1}^{N} f_i \cdot P_i \]
+
+\begin{itemize}
+    \item \textbf{Balanced Case:} $f=[0.5, 0.5], P=[0.5, 0.5]$. Loss $= 2 \cdot (0.25 + 0.25) = \mathbf{1.0}$. (Minimum)
+    \item \textbf{Collapsed Case:} $f=[1.0, 0.0], P=[1.0, 0.0]$. Loss $= 2 \cdot (1.0 + 0.0) = \mathbf{2.0}$. (Maximum)
+\end{itemize}
+
+\subsubsection{Integration into Training}
+This auxiliary loss is added to the main objective with a small coefficient ($\alpha=0.01$) so it doesn't overpower the main goal of predicting the next token.
+
+\begin{lstlisting}[language=Python]
+# 1. Calculate standard language modeling loss
+lm_loss = F.cross_entropy(logits, labels)
+
+# 2. Calculate load balancing loss
+aux_loss = self.compute_load_balancing_loss([
+    router_probs_layer_1,
+    router_probs_layer_2
+])
+
+# 3. Combine them
+# alpha=0.01 ensures we just nudge the router, not force it
+loss = lm_loss + 0.01 * aux_loss
+\end{lstlisting}
+
+\section{Experiments \& Results}
+
+A controlled experiment was conducted to validate the stability and performance of the routing mechanism.
+
+\textbf{Setup:}
+\begin{itemize}
+    \item \textbf{Model Size:} $\sim$160M parameters
+    \item \textbf{Data:} SmolLm Corpus (Cosmopedia v2)
+    \item \textbf{Training:} 200 steps (Proof of Concept phase)
+    \item \textbf{Comparison:} 
+    \begin{enumerate}
+        \item \textbf{Static Baseline:} Fixed layers (GDN $\rightarrow$ GDN $\rightarrow$ GDN $\rightarrow$ Softmax).
+        \item \textbf{Dynamic Model:} Learned routing for Layers 1 \& 2.
+    \end{enumerate}
+\end{itemize}
+
+\subsection{Performance Comparison}
+
+The dynamic model successfully learned a balanced routing strategy (using $\sim$55-60\% GDN in routed layers) and achieved comparable performance to the static baseline.
+
+\begin{table}[h]
+    \centering
+    \begin{tabular}{lccc}
+        \toprule
+        \textbf{Model} & \textbf{Val Loss} $\downarrow$ & \textbf{Val Accuracy} $\uparrow$ & \textbf{Routing Behavior} \\
+        \midrule
+        \textbf{Static Baseline} & 7.00 & 13.30\% & Fixed (100\% GDN in L1/L2) \\
+        \textbf{Dynamic (Balanced)} & \textbf{6.25} & \textbf{21.08\%} & \textbf{Mixed ($\sim$56\% GDN / 44\% Softmax)} \\
+        \bottomrule
+    \end{tabular}
+    \caption{Performance Comparison}
+    \label{tab:performance}
+\end{table}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\linewidth]{results_dynamic/routing_comparison.png}
+    \caption{Training Curves}
+    \label{fig:training_curves}
+\end{figure}
+
+\subsection{Routing Analysis}
+The router did not simply collapse to a random 50/50 split; it learned specific preferences for different layers.
+\begin{itemize}
+    \item \textbf{Layer 1:} 55.6\% GDN / 44.4\% Softmax
+    \item \textbf{Layer 2:} 60.9\% GDN / 39.1\% Softmax
+\end{itemize}
+
+This confirms the hypothesis: the model \textit{can} learn to allocate different computational resources to different parts of the network.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\linewidth]{results_dynamic/layer_selection_over_time.png}
+    \caption{Routing Distribution Over Time}
+    \label{fig:routing_dist}
+\end{figure}
+
+\section{Discussion: The Efficiency Trade-off}
+
+The results highlight a fundamental trade-off in efficient AI:
+
+\begin{enumerate}
+    \item \textbf{Training Cost:} The Dynamic model is harder to train. It requires extra parameters for the router and careful tuning of the load balancing loss to prevent collapse. It was observed that without this loss, the model greedily collapses to the ``easiest'' path (pure GDN), missing out on the benefits of hybrid attention.
+    
+    \item \textbf{Inference Optimization:} The payoff is in inference. A static model is rigid—it must pay the $O(n^2)$ cost for Softmax layers on \textit{every} token. The dynamic model has the \textit{option} to use $O(n)$ linear attention for easy tokens. In a large-scale deployment, this means simple queries can be processed with linear speed, only triggering the expensive quadratic attention when the router detects complex dependencies.
+\end{enumerate}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\linewidth]{results_dynamic/final_routing_distribution.png}
+    \caption{Final Routing Distribution}
+    \label{fig:final_routing}
+\end{figure}
+
+\section{Conclusion}
+
+This work has demonstrated a working proof-of-concept for dynamic token routing in Linear Transformers. By accepting higher training complexity, an adaptive inference engine is gained that intelligently allocates FLOPs. Future work will scale this to billions of parameters, where the savings from routing ``easy'' tokens away from quadratic attention could yield massive efficiency gains.
+
+\end{document}
