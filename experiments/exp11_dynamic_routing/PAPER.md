@@ -88,8 +88,8 @@ The dynamic model successfully learned a balanced routing strategy (using ~55-60
 | **Static Baseline** | 7.00 | 13.30% | Fixed (100% GDN in L1/L2) |
 | **Dynamic (Balanced)** | **6.25** | **21.08%** | **Mixed (~56% GDN / 44% Softmax)** |
 
-**[FIGURE 2 HERE: Training Curves]**
-> **Prompt for Figure:** A line chart comparing "Validation Loss" over time. The X-axis is "Training Steps" (0 to 200). The Y-axis is "Loss". Show two lines: a Blue line for "Static Baseline" that decreases slowly, and an Orange line for "Dynamic Routing" that decreases faster and reaches a lower value.
+**Figure 2: Training Curves**
+![Training Curves](results_dynamic_aggressive/routing_comparison.png)
 
 ### 3.2 Routing Analysis
 The router did not simply collapse to a random 50/50 split; it learned specific preferences for different layers.
@@ -98,8 +98,8 @@ The router did not simply collapse to a random 50/50 split; it learned specific 
 
 This confirms the hypothesis: the model *can* learn to allocate different computational resources to different parts of the network.
 
-**[FIGURE 3 HERE: Routing Distribution]**
-> **Prompt for Figure:** A stacked area chart showing the routing percentage over time. X-axis is steps. Y-axis is 0% to 100%. The area is split into Blue (GDN) and Orange (Softmax). Show that it starts noisy but stabilizes around a 60/40 split, proving the load balancing works.
+**Figure 3: Routing Distribution Over Time**
+![Routing Distribution](results_dynamic_aggressive/layer_selection_over_time.png)
 
 ---
 
@@ -111,8 +111,8 @@ The results highlight a fundamental trade-off in efficient AI:
 
 2.  **Inference Optimization:** The payoff is in inference. A static model is rigid—it must pay the O(n²) cost for Softmax layers on *every* token. The dynamic model has the *option* to use O(n) linear attention for easy tokens. In a large-scale deployment, this means simple queries can be processed with linear speed, only triggering the expensive quadratic attention when the router detects complex dependencies.
 
-**[FIGURE 4 HERE: Inference Concept]**
-> **Prompt for Figure:** A conceptual illustration comparing "Static" vs "Dynamic" inference. On the left (Static), show a heavy block processing every token equally slowly. On the right (Dynamic), show a stream of tokens where "easy" tokens (green dots) zip through a fast lane (Linear) and "hard" tokens (red dots) go through a detailed lane (Softmax). Label it "Optimized Inference Compute".
+**Figure 4: Final Routing Distribution**
+![Final Routing Distribution](results_dynamic_aggressive/final_routing_distribution.png)
 
 ## 5. Conclusion
 
