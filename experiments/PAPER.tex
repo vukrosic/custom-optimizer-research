@@ -21,15 +21,19 @@
 }
 
 \title{Adaptive Selection between Linear and Full Attention Layers for Every Token}
-\author{}
-\date{}
+\author{
+    Vuk Rosić\textsuperscript{1,2} \\
+    \textsuperscript{1}Open Superintelligence Lab \\
+    \textsuperscript{2}Óbuda University
+}
+\date{December 4, 2025}
 
 \begin{document}
 
 \maketitle
 
 \begin{abstract}
-This paper proposes a dynamic routing mechanism that selects between linear ($O(n)$) and softmax ($O(n^2)$) attention on a per-token basis. While linear attention offers efficiency, it often lacks the attention (detail retrieval and understanding) power of full softmax attention. This approach allows the model to adaptively allocate compute: using fast linear attention for ``easy'' tokens and computationally intensive softmax attention for ``hard'' tokens. This introduces a trade-off: increased training complexity (teaching the router) in exchange for optimized inference (allocating FLOPs where needed). This concept is validated with a proof-of-concept 4-layer model, demonstrating that a stable, balanced routing strategy can be learned.
+This paper proposes a dynamic routing mechanism that selects between linear ($O(n)$) and softmax ($O(n^2)$) attention on a per-token basis. While linear attention offers efficiency, it often lacks the attention power (detail retrieval and understanding) of full softmax attention. This approach allows the model to adaptively allocate compute: using fast linear attention for ``easy'' tokens and computationally intensive softmax attention for ``hard'' tokens. This introduces a trade-off: increased training complexity (teaching the router) in exchange for optimized inference (allocating FLOPs where needed). This concept is validated with a proof-of-concept 4-layer model, demonstrating that a stable, balanced routing strategy can be learned.
 \end{abstract}
 
 \section{Introduction}
@@ -69,11 +73,11 @@ A critical challenge is \textbf{routing collapse}, where the model defaults to 1
 \subsubsection{The Math: Measuring Balance}
 We track two metrics for our $N=2$ experts:
 \begin{enumerate}
-    \item \textbf{$f$:} What fraction of tokens did we \textit{actually} assign to each expert?
+    \item \textbf{$f$ (The Actual Workload):} What fraction of tokens did we \textit{actually} assign to each expert?
     \begin{itemize}
         \item \textit{Example:} If we have 100 tokens and send 90 to Linear, $f = [0.9, 0.1]$.
     \end{itemize}
-    \item \textbf{$P$:} What was the average probability (confidence) the router had for each expert?
+    \item \textbf{$P$ (The Manager's Bias):} What was the average probability (confidence) the router had for each expert?
     \begin{itemize}
         \item \textit{Example:} If the router was generally 90\% sure about Linear, $P = [0.9, 0.1]$.
     \end{itemize}

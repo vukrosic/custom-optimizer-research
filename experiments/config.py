@@ -193,7 +193,7 @@ def get_dynamic_config():
         # Training
         max_seq_len=1024,
         batch_size=16,
-        max_steps=20,
+        max_steps=1500,
         warmup_steps=5,
         learning_rate=2e-3,  # Hybrids with attention prefer higher LR (from exp7)
         gradient_clip=1.0,
