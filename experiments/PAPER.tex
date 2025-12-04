@@ -167,28 +167,58 @@ The dynamic model successfully learned a balanced routing strategy (using $\sim$
 \end{figure}
 
 \subsection{Routing Analysis}
-The router did not simply collapse to a random 50/50 split; it learned specific preferences for different layers.
+The router did not simply collapse to a random 50/50 split; it learned specific preferences for different layers. As shown in Figure~\ref{fig:routing_distribution}, both layers demonstrate a preference for linear attention:
 \begin{itemize}
-    \item \textbf{Layer 1:} 54.0\% GDN / 46.0\% Softmax (prefers slightly more linear attention)
-    \item \textbf{Layer 2:} 57.7\% GDN / 42.3\% Softmax (stronger preference for linear attention)
+    \item \textbf{Layer 1:} 59.3\% Linear (GDN) / 40.7\% Softmax
+    \item \textbf{Layer 2:} 63.0\% Linear (GDN) / 37.0\% Softmax
 \end{itemize}
 
 This confirms the hypothesis: the model \textit{can} learn to allocate different computational resources to different parts of the network. The routing distribution remained stable throughout training, demonstrating that the $\alpha=0.5$ load balancing coefficient successfully prevented collapse while still allowing the model to learn meaningful layer-specific routing preferences.
 
-\subsubsection{Qualitative Analysis}
-Qualitative analysis of the routing decisions reveals interesting patterns. For example, in the sentence ``The quick brown fox...'', the model routes function words like ``The'', ``over'', and ``of'' to Softmax attention in Layer 1, while content words like ``quick'', ``brown'', and ``fox'' are routed to Linear attention. This suggests the model uses the more expensive Softmax attention for structural tokens that may require precise attending to previous context, while efficient Linear attention suffices for content tokens.
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.9\linewidth]{images/routing_distribution.png}
+    \caption{Routing Distribution Across Layers. Both layers show a preference for Linear (GDN) attention ($\sim$60\%), but reserve $\sim$40\% of tokens for the more expensive Softmax mechanism, indicating learned selectivity rather than uniform routing.}
+    \label{fig:routing_distribution}
+\end{figure}
+
+\subsubsection{Token-Level Routing Patterns}
+To understand which tokens trigger different attention mechanisms, we analyzed routing decisions on representative text. Figure~\ref{fig:routing_heatmap} shows the token-by-token routing decisions for both routed layers.
+
+Several interesting patterns emerge:
+\begin{enumerate}
+    \item \textbf{Punctuation \& Structural Tokens:} Tokens like periods, commas, and the initial ``The'' consistently route to Softmax in Layer 1. This suggests the model uses full attention for structural tokens that may require global context awareness.
+    
+    \item \textbf{Content Words:} Nouns and verbs (``fox'', ``jumps'', ``equations'', ``mechanics'') often route to Linear attention in Layer 1, relying on the efficient mechanism for straightforward content representation.
+    
+    \item \textbf{Layer-Specific Behavior:} Layer 2 shows the opposite pattern—more content words route to Softmax while structural tokens use Linear. This suggests a hierarchical routing strategy where different layers specialize in different types of dependencies.
+    
+    \item \textbf{Context-Dependent Routing:} The same word type (e.g., "the") can be routed differently depending on its position and surrounding context, indicating that routing is truly dynamic and context-aware rather than based solely on token identity.
+\end{enumerate}
 
 \begin{figure}[h]
     \centering
     \includegraphics[width=\linewidth]{images/token_routing_heatmap.png}
-    \caption{Token-Level Routing Decisions. Blue indicates Linear Attention (GDN), Red indicates Softmax Attention. The model learns to route specific tokens to different mechanisms.}
+    \caption{Token-Level Routing Decisions. Blue indicates Linear Attention (GDN), Red indicates Softmax Attention. The heatmap shows layer-specific routing patterns where Layer 1 and Layer 2 make complementary decisions.}
     \label{fig:routing_heatmap}
 \end{figure}
+
+\subsubsection{Routing Confidence Analysis}
+Figure~\ref{fig:routing_confidence} reveals a critical characteristic of the learned router: \textbf{extremely high confidence}. Nearly all routing probabilities are at or very close to 1.0 for the selected mechanism, with virtually no uncertain decisions (probabilities near 0.5).
+
+This sharp decision boundary has important implications:
+\begin{itemize}
+    \item \textbf{Well-Separated Feature Space:} The router has learned to distinguish between tokens requiring linear vs. softmax attention with high certainty. This is not a random or noisy selection process.
+    
+    \item \textbf{Stable Gradients:} High-confidence decisions reduce variance in the Gumbel-Softmax gradients during training, potentially contributing to the stable convergence observed.
+    
+    \item \textbf{Inference Efficiency:} The deterministic nature of routing at inference time (argmax selection) closely matches the training distribution, reducing train-test mismatch.
+\end{itemize}
 
 \begin{figure}[h]
     \centering
     \includegraphics[width=\linewidth]{images/routing_confidence.png}
-    \caption{Routing Confidence. The router makes confident decisions (probabilities close to 0 or 1) rather than uncertain ones.}
+    \caption{Routing Confidence Per Token. The bar charts show softmax probabilities for each token in both layers. Colors indicate the selected mechanism (red = Softmax, blue = Linear). The router makes extremely confident decisions with probabilities consistently at $\sim$1.0, indicating a sharp learned distinction between token types.}
     \label{fig:routing_confidence}
 \end{figure}
 
@@ -199,15 +229,8 @@ The results highlight a fundamental trade-off in efficient AI:
 \begin{enumerate}
     \item \textbf{Training Cost:} The Dynamic model is harder to train. It requires extra parameters for the router and careful tuning of the load balancing loss to prevent collapse. Initial experiments with the conservative coefficient ($\alpha=0.01$) used in the Switch Transformer paper resulted in complete routing collapse to GDN layers. Only by increasing the coefficient 50-fold to $\alpha=0.5$ was balanced routing achieved. This highlights that the load balancing strength must be carefully tuned for each architecture and task—too weak and the model collapses to the easiest path, too strong and it may prevent learning meaningful routing preferences.
     
-    \item \textbf{Inference Optimization:} The payoff is in inference. A static model is rigid—it must pay the $O(n^2)$ cost for Softmax layers on \textit{every} token. The dynamic model has the \textit{option} to use $O(n)$ linear attention for easy tokens. In a large-scale deployment, this means simple queries can be processed with linear speed, only triggering the expensive quadratic attention when the router detects complex dependencies.
+    \item \textbf{Inference Optimization:} The payoff is in inference. A static model is rigid—it must pay the $O(n^2)$ cost for Softmax layers on \textit{every} token. The dynamic model has the \textit{option} to use $O(n)$ linear attention for easy tokens. In a large-scale deployment, this means simple queries can be processed with linear speed, only triggering the expensive quadratic attention when the router detects complex dependencies. As shown in Figure~\ref{fig:routing_distribution}, the learned router maintains approximately 60\% linear attention usage across both layers, demonstrating significant potential for inference speedup while preserving model quality.
 \end{enumerate}
-
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=\linewidth]{images/final_routing_distribution.png}
-    \caption{Final Routing Distribution}
-    \label{fig:final_routing}
-\end{figure}
 
 \section{Conclusion}
 

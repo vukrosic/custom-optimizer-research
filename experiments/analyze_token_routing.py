@@ -40,16 +40,23 @@ def analyze_routing_patterns(text, model, tokenizer, device):
         outputs = model(input_ids, return_routing=True)
     
     # Extract routing decisions (batch=0)
-    r1 = outputs['route_layer_1'][0]  # Shape: [seq_len, 2]
-    r2 = outputs['route_layer_2'][0]  # Shape: [seq_len, 2]
+    # route_layer_X is the hard choice [seq_len, 2] (one-hot)
+    r1_hard = outputs['route_layer_1'][0]
+    r2_hard = outputs['route_layer_2'][0]
+    
+    # Extract raw probabilities (batch=0)
+    # router_probs is [seq_len, 2, 2] -> dim 2 is layer (0=L1, 1=L2)
+    probs = outputs['router_probs'][0] # [seq_len, 2, 2]
+    r1_probs_raw = probs[:, 0, :] # [seq_len, 2]
+    r2_probs_raw = probs[:, 1, :] # [seq_len, 2]
     
     # Convert to indices (0=GDN, 1=Softmax)
-    r1_idx = r1.argmax(dim=-1).cpu().numpy()
-    r2_idx = r2.argmax(dim=-1).cpu().numpy()
+    r1_idx = r1_hard.argmax(dim=-1).cpu().numpy()
+    r2_idx = r2_hard.argmax(dim=-1).cpu().numpy()
     
-    # Get probabilities
-    r1_probs = F.softmax(r1, dim=-1).cpu().numpy()
-    r2_probs = F.softmax(r2, dim=-1).cpu().numpy()
+    # Get probabilities as numpy (cast to float32 first for bfloat16 support)
+    r1_probs = r1_probs_raw.float().cpu().numpy()
+    r2_probs = r2_probs_raw.float().cpu().numpy()
     
     # Decode tokens for cleaner display
     clean_tokens = []
