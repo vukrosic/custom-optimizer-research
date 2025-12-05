@@ -1,9 +1,5 @@
-datasets
-transformers
+torch>=2.0.0
 torchtune
-torchao
-matplotlib
-einops
-termcolor
-
-# flash-attn --no-build-isolation
+transformers
+datasets
+numpy
