@@ -1,4 +1,4 @@
-# Blueberry LLM
+# Custom Optimizers Research
 
 **Open Superintelligence Lab** - Open research for everyone. We publish all of our research for the sake of accelerating science. Learn real AI research from a real research lab.
 
