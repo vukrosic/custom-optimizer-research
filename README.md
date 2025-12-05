@@ -21,3 +21,15 @@ python train.py
 ```bash
 python train.py --max_steps 500 --batch_size 8 --num_layers 4
 ```
+
+# Run baseline (Muon for 2D, Adam for others)
+python experiments/run_experiments.py --exp baseline
+
+# Run sphere constraint comparison
+python experiments/run_experiments.py --exp sphere_constraint
+
+# Run both main experiments
+python experiments/run_experiments.py --exp baseline --exp sphere_constraint
+
+# Run all experiments
+python experiments/run_experiments.py --all

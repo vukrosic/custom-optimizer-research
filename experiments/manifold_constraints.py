@@ -2,12 +2,14 @@
 Manifold Constraints for Neural Network Parameters.
 
 Implements the core manifold constraints from the Modular Manifolds article:
+- Hypersphere: vectors constrained to unit norm (for embeddings)
 - Stiefel manifold: W^T W = I (orthonormal columns, all singular values = 1)
 - Spectral constraint: largest singular value = 1
 """
 
 import torch
 import torch.nn as nn
+import math
 
 
 def stiefel_project_newton_schulz(W: torch.Tensor, steps: int = 5) -> torch.Tensor:
@@ -158,3 +160,74 @@ class SpectralNormOptimizer(torch.optim.Optimizer):
     @property
     def param_groups(self):
         return self.base_optimizer.param_groups
+
+
+def sphere_project(w: torch.Tensor, radius: float = 1.0) -> torch.Tensor:
+    """
+    Project a vector or matrix rows onto the hypersphere of given radius.
+    
+    For embedding matrices, each row (embedding vector) is normalized to lie
+    on the hypersphere. This implements the retraction map from the article:
+    
+        w ← w / sqrt(1 + η²)
+    
+    But for simplicity, we just normalize to unit norm directly.
+    """
+    if w.ndim == 1:
+        return w * (radius / (w.norm() + 1e-8))
+    elif w.ndim == 2:
+        # Normalize each row (embedding vector) separately
+        norms = w.norm(dim=1, keepdim=True)
+        return w * (radius / (norms + 1e-8))
+    else:
+        return w
+
+
+class SphereOptimizer(torch.optim.Optimizer):
+    """
+    Wrapper that constrains embedding vectors to lie on a hypersphere.
+    
+    This implements the hyperspherical descent algorithm from the article:
+    1. Take base optimizer step in tangent space
+    2. Apply retraction map to project back to manifold
+    
+    The hypersphere constraint is useful for embedding vectors where we want
+    to prevent norm explosion/collapse and focus optimization on directions.
+    """
+    
+    def __init__(self, params, base_optimizer: torch.optim.Optimizer, radius: float = 1.0):
+        self.base_optimizer = base_optimizer
+        self.radius = radius
+        
+        # Store reference to embedding parameters
+        self.embed_params = []
+        for group in base_optimizer.param_groups:
+            for p in group['params']:
+                self.embed_params.append(p)
+        
+        # Initialize on hypersphere
+        for p in self.embed_params:
+            with torch.no_grad():
+                p.data = sphere_project(p.data, self.radius)
+        
+        defaults = dict(radius=radius)
+        super().__init__(params, defaults)
+    
+    @torch.no_grad()
+    def step(self, closure=None):
+        # Take base optimizer step
+        loss = self.base_optimizer.step(closure)
+        
+        # Retract to hypersphere
+        for p in self.embed_params:
+            p.data = sphere_project(p.data, self.radius)
+        
+        return loss
+    
+    def zero_grad(self):
+        self.base_optimizer.zero_grad()
+    
+    @property
+    def param_groups(self):
+        return self.base_optimizer.param_groups
+

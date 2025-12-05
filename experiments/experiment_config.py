@@ -71,14 +71,20 @@ class ExperimentConfig:
 
 
 def get_experiment_configs() -> Dict[str, ExperimentConfig]:
-    """Return all experiment configurations."""
+    """Return all experiment configurations.
+    
+    Main experiments:
+    1. baseline: Muon for 2D weight matrices, AdamW for embeddings/norms
+    2. sphere_constraint: Same as baseline but with sphere constraint on embeddings
+    """
     
     # Optimizer presets
     adamw = OptimizerConfig("adamw", lr=3e-4, weight_decay=0.1)
     adamw_no_wd = OptimizerConfig("adamw", lr=3e-4, weight_decay=0.0)
     muon = OptimizerConfig("muon", lr=0.02, momentum=0.95)
     
-    # With manifold constraints
+    # With manifold constraints (from Modular Manifolds article)
+    adamw_sphere = OptimizerConfig("adamw", lr=3e-4, weight_decay=0.0, manifold="sphere")
     adamw_stiefel = OptimizerConfig("adamw", lr=3e-4, weight_decay=0.0, manifold="stiefel")
     muon_stiefel = OptimizerConfig("muon", lr=0.02, momentum=0.95, manifold="stiefel")
     adamw_spectral = OptimizerConfig("adamw", lr=3e-4, weight_decay=0.0, manifold="spectral")
@@ -86,49 +92,46 @@ def get_experiment_configs() -> Dict[str, ExperimentConfig]:
     experiments = {}
     
     # =========================================================================
-    # PART 1: Optimizer comparison (no manifold constraints)
+    # MAIN EXPERIMENTS (from Modular Manifolds article)
     # =========================================================================
     
+    # Baseline: Muon for 2D matrices (attention, FFN), AdamW for others
     experiments["baseline"] = ExperimentConfig(
         name="baseline",
-        description="AdamW for all parameters",
-        embedding_optimizer=adamw,
-        attention_optimizer=adamw,
-        ffn_optimizer=adamw,
-        norm_optimizer=adamw_no_wd,
-    )
-    
-    experiments["muon_all"] = ExperimentConfig(
-        name="muon_all", 
-        description="Muon for attention & FFN, AdamW for embeddings & norms",
+        description="Muon for 2D weight matrices, AdamW for embeddings & norms",
         embedding_optimizer=adamw,
         attention_optimizer=muon,
         ffn_optimizer=muon,
         norm_optimizer=adamw_no_wd,
     )
     
-    experiments["muon_attention"] = ExperimentConfig(
-        name="muon_attention",
-        description="Muon for attention only",
-        embedding_optimizer=adamw,
+    # Sphere constraint: Same as baseline but embeddings constrained to hypersphere
+    # This is the key experiment from the article - constraining embedding vectors
+    # to unit norm hypersphere for healthier training
+    experiments["sphere_constraint"] = ExperimentConfig(
+        name="sphere_constraint",
+        description="Baseline + hypersphere constraint on embeddings (unit norm rows)",
+        embedding_optimizer=adamw_sphere,
         attention_optimizer=muon,
-        ffn_optimizer=adamw,
-        norm_optimizer=adamw_no_wd,
-    )
-    
-    experiments["muon_ffn"] = ExperimentConfig(
-        name="muon_ffn",
-        description="Muon for FFN only",
-        embedding_optimizer=adamw,
-        attention_optimizer=adamw,
         ffn_optimizer=muon,
         norm_optimizer=adamw_no_wd,
     )
     
     # =========================================================================
-    # PART 2: Manifold constraint experiments
+    # ADDITIONAL EXPERIMENTS (for ablation)
     # =========================================================================
     
+    # AdamW everywhere as a reference
+    experiments["adamw_only"] = ExperimentConfig(
+        name="adamw_only",
+        description="AdamW for all parameters (no Muon)",
+        embedding_optimizer=adamw,
+        attention_optimizer=adamw,
+        ffn_optimizer=adamw,
+        norm_optimizer=adamw_no_wd,
+    )
+    
+    # Stiefel manifold for all 2D weights
     experiments["stiefel_all"] = ExperimentConfig(
         name="stiefel_all",
         description="Stiefel manifold (W^T W = I) for attention & FFN",
@@ -138,40 +141,20 @@ def get_experiment_configs() -> Dict[str, ExperimentConfig]:
         norm_optimizer=adamw_no_wd,
     )
     
-    experiments["stiefel_attention"] = ExperimentConfig(
-        name="stiefel_attention",
-        description="Stiefel manifold for attention only",
-        embedding_optimizer=adamw,
-        attention_optimizer=adamw_stiefel,
-        ffn_optimizer=adamw,
+    # Full manifold approach: sphere for embeddings, Stiefel for matrices
+    experiments["full_manifold"] = ExperimentConfig(
+        name="full_manifold",
+        description="Sphere for embeddings + Stiefel manifold for attention & FFN",
+        embedding_optimizer=adamw_sphere,
+        attention_optimizer=muon_stiefel,
+        ffn_optimizer=muon_stiefel,
         norm_optimizer=adamw_no_wd,
     )
     
-    experiments["stiefel_ffn"] = ExperimentConfig(
-        name="stiefel_ffn",
-        description="Stiefel manifold for FFN only",
-        embedding_optimizer=adamw,
-        attention_optimizer=adamw,
-        ffn_optimizer=adamw_stiefel,
-        norm_optimizer=adamw_no_wd,
-    )
-    
-    experiments["spectral_all"] = ExperimentConfig(
-        name="spectral_all",
-        description="Spectral norm = 1 for attention & FFN",
-        embedding_optimizer=adamw,
-        attention_optimizer=adamw_spectral,
-        ffn_optimizer=adamw_spectral,
-        norm_optimizer=adamw_no_wd,
-    )
-    
-    # =========================================================================
-    # PART 3: Combined approaches (Muon + manifold)
-    # =========================================================================
-    
+    # Manifold Muon (Muon + Stiefel without sphere embeddings)
     experiments["manifold_muon"] = ExperimentConfig(
         name="manifold_muon",
-        description="Muon optimizer + Stiefel constraint (full manifold Muon)",
+        description="Muon optimizer + Stiefel constraint (no sphere embeddings)",
         embedding_optimizer=adamw,
         attention_optimizer=muon_stiefel,
         ffn_optimizer=muon_stiefel,
@@ -187,3 +170,4 @@ def get_experiment(name: str) -> ExperimentConfig:
     if name not in experiments:
         raise ValueError(f"Unknown experiment: {name}. Available: {list(experiments.keys())}")
     return experiments[name]
+

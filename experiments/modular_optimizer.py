@@ -12,7 +12,7 @@ from dataclasses import dataclass
 import re
 
 from experiments.experiment_config import OptimizerConfig, ExperimentConfig
-from experiments.manifold_constraints import StiefelOptimizer, SpectralNormOptimizer
+from experiments.manifold_constraints import StiefelOptimizer, SpectralNormOptimizer, SphereOptimizer
 
 
 @dataclass
@@ -153,6 +153,8 @@ class ModularOptimizer:
                 self.optimizers[group_name] = StiefelOptimizer(group.params, base_opt)
             elif manifold == 'spectral':
                 self.optimizers[group_name] = SpectralNormOptimizer(group.params, base_opt)
+            elif manifold == 'sphere':
+                self.optimizers[group_name] = SphereOptimizer(group.params, base_opt)
             else:
                 self.optimizers[group_name] = base_opt
         
