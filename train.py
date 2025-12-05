@@ -11,34 +11,92 @@ import math
 import time
 import torch
 from pathlib import Path
-from torch.utils.data import DataLoader
+from torch.utils.data import Dataset, DataLoader
+from datasets import load_dataset
+from transformers import AutoTokenizer
 
 from config import ModelConfig, TrainingConfig
 from model import create_model
-from data.loader import quick_dataset
-from utils.helpers import set_seed
+
+
+def set_seed(seed):
+    """Set random seeds for reproducibility"""
+    import random
+    import numpy as np
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
+
+class SmolLMDataset(Dataset):
+    """Simple dataset that loads and tokenizes SmolLM corpus"""
+    
+    def __init__(self, seq_len: int = 1024, num_samples: int = 50000, split: str = "train"):
+        print(f"📦 Loading SmolLM dataset ({num_samples} samples)...")
+        
+        # Load tokenizer
+        self.tokenizer = AutoTokenizer.from_pretrained("HuggingFaceTB/SmolLM-135M")
+        if self.tokenizer.pad_token is None:
+            self.tokenizer.pad_token = self.tokenizer.eos_token
+        
+        # Load dataset (streaming for efficiency)
+        dataset = load_dataset(
+            "HuggingFaceTB/smollm-corpus",
+            "cosmopedia-v2",
+            split="train",
+            streaming=True,
+        )
+        
+        # Tokenize and concatenate all text into one big buffer
+        all_tokens = []
+        for i, example in enumerate(dataset):
+            if len(all_tokens) >= num_samples * seq_len:
+                break
+            tokens = self.tokenizer.encode(example["text"], add_special_tokens=True)
+            all_tokens.extend(tokens)
+        
+        # Truncate to multiple of seq_len
+        total_tokens = (len(all_tokens) // seq_len) * seq_len
+        all_tokens = all_tokens[:total_tokens]
+        
+        # Reshape into chunks of seq_len (stride = seq_len, no overlap)
+        self.data = torch.tensor(all_tokens).view(-1, seq_len)
+        
+        print(f"✓ Loaded {len(self.data)} sequences of length {seq_len}")
+        print(f"✓ Vocab size: {self.tokenizer.vocab_size}")
+    
+    def __len__(self):
+        return len(self.data)
+    
+    def __getitem__(self, idx):
+        tokens = self.data[idx]
+        return {
+            "input_ids": tokens,
+            "labels": tokens.clone(),
+        }
 
 
 def create_dataloaders(config: TrainingConfig):
     """Create train and validation dataloaders"""
-    print(f"\n📦 Loading dataset...")
-    
-    dataset, tokenizer = quick_dataset(
-        preset="cosmopedia",
-        seq_length=config.max_seq_len,
+    dataset = SmolLMDataset(
+        seq_len=config.max_seq_len,
         num_samples=config.num_samples,
     )
     
     # Split into train/val (90/10)
-    split = dataset.train_test_split(test_size=0.1, seed=config.seed)
-    train_dataset = split["train"]
-    val_dataset = split["test"]
+    train_size = int(0.9 * len(dataset))
+    val_size = len(dataset) - train_size
+    train_dataset, val_dataset = torch.utils.data.random_split(
+        dataset, [train_size, val_size]
+    )
     
     train_loader = DataLoader(
         train_dataset,
         batch_size=config.batch_size,
         shuffle=True,
-        num_workers=2,
+        num_workers=0,
         pin_memory=True,
     )
     
@@ -46,14 +104,13 @@ def create_dataloaders(config: TrainingConfig):
         val_dataset,
         batch_size=config.batch_size,
         shuffle=False,
-        num_workers=2,
+        num_workers=0,
         pin_memory=True,
     )
     
     print(f"✓ Train: {len(train_dataset)} samples, Val: {len(val_dataset)} samples")
-    print(f"✓ Vocab size: {tokenizer.vocab_size}")
     
-    return train_loader, val_loader, tokenizer
+    return train_loader, val_loader, dataset.tokenizer
 
 
 def train(model_config: ModelConfig, train_config: TrainingConfig):
