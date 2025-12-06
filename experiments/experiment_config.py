@@ -44,15 +44,15 @@ class ExperimentConfig:
     norm_optimizer: OptimizerConfig = None
     
     # Training settings
-    max_steps: int = 100
-    warmup_steps: int = 10
+    max_steps: int = 20
+    warmup_steps: int = 2
     batch_size: int = 16
     max_seq_len: int = 512
     num_samples: int = 30000
     
     # Logging
-    log_interval: int = 10
-    eval_interval: int = 100
+    log_interval: int = 2
+    eval_interval: int = 20
     
     # Model settings
     hidden_size: int = 512

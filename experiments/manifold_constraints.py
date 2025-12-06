@@ -73,7 +73,7 @@ def spectral_normalize(W: torch.Tensor, radius: float = 1.0,
     return W * (radius / (sigma_max + 1e-7))
 
 
-class StiefelOptimizer(torch.optim.Optimizer):
+class StiefelOptimizer:
     """
     Wrapper that applies Stiefel manifold constraint after any base optimizer step.
     
@@ -97,14 +97,17 @@ class StiefelOptimizer(torch.optim.Optimizer):
         for p in self.matrix_params:
             with torch.no_grad():
                 p.data = stiefel_project_newton_schulz(p.data, self.ns_steps)
-        
-        defaults = dict(ns_steps=ns_steps)
-        super().__init__(params, defaults)
     
     @torch.no_grad()
     def step(self, closure=None):
         # Take base optimizer step
-        loss = self.base_optimizer.step(closure)
+        # Some optimizers (like Muon) don't accept closure argument
+        import inspect
+        sig = inspect.signature(self.base_optimizer.step)
+        if 'closure' in sig.parameters:
+            loss = self.base_optimizer.step(closure)
+        else:
+            loss = self.base_optimizer.step()
         
         # Retract to Stiefel manifold
         for p in self.matrix_params:
@@ -120,7 +123,7 @@ class StiefelOptimizer(torch.optim.Optimizer):
         return self.base_optimizer.param_groups
 
 
-class SpectralNormOptimizer(torch.optim.Optimizer):
+class SpectralNormOptimizer:
     """
     Wrapper that constrains matrices to have spectral norm = 1 after each step.
     
@@ -141,13 +144,16 @@ class SpectralNormOptimizer(torch.optim.Optimizer):
         for p in self.matrix_params:
             with torch.no_grad():
                 p.data = spectral_normalize(p.data)
-        
-        defaults = dict()
-        super().__init__(params, defaults)
     
     @torch.no_grad()
     def step(self, closure=None):
-        loss = self.base_optimizer.step(closure)
+        # Some optimizers (like Muon) don't accept closure argument
+        import inspect
+        sig = inspect.signature(self.base_optimizer.step)
+        if 'closure' in sig.parameters:
+            loss = self.base_optimizer.step(closure)
+        else:
+            loss = self.base_optimizer.step()
         
         for p in self.matrix_params:
             p.data = spectral_normalize(p.data)
@@ -183,7 +189,7 @@ def sphere_project(w: torch.Tensor, radius: float = 1.0) -> torch.Tensor:
         return w
 
 
-class SphereOptimizer(torch.optim.Optimizer):
+class SphereOptimizer:
     """
     Wrapper that constrains embedding vectors to lie on a hypersphere.
     
@@ -209,14 +215,17 @@ class SphereOptimizer(torch.optim.Optimizer):
         for p in self.embed_params:
             with torch.no_grad():
                 p.data = sphere_project(p.data, self.radius)
-        
-        defaults = dict(radius=radius)
-        super().__init__(params, defaults)
     
     @torch.no_grad()
     def step(self, closure=None):
         # Take base optimizer step
-        loss = self.base_optimizer.step(closure)
+        # Some optimizers (like Muon) don't accept closure argument
+        import inspect
+        sig = inspect.signature(self.base_optimizer.step)
+        if 'closure' in sig.parameters:
+            loss = self.base_optimizer.step(closure)
+        else:
+            loss = self.base_optimizer.step()
         
         # Retract to hypersphere
         for p in self.embed_params:
