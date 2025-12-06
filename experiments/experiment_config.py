@@ -44,8 +44,8 @@ class ExperimentConfig:
     norm_optimizer: OptimizerConfig = None
     
     # Training settings
-    max_steps: int = 2000
-    warmup_steps: int = 100
+    max_steps: int = 100
+    warmup_steps: int = 10
     batch_size: int = 16
     max_seq_len: int = 512
     num_samples: int = 30000

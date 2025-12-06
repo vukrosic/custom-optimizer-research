@@ -1,0 +1,41 @@
+{
+  "experiment_name": "baseline",
+  "start_time": "2025-12-06T07:52:29.846894",
+  "steps": [
+    {
+      "step": 10,
+      "train_loss": 10.598953151702881,
+      "tokens_per_sec": 35939.06250003268,
+      "lr_embedding": 2.9999999999999997e-05,
+      "lr_attention": 0.002,
+      "lr_ffn": 0.002,
+      "lr_norm": 2.9999999999999997e-05
+    },
+    {
+      "step": 20,
+      "train_loss": 10.250839519500733,
+      "tokens_per_sec": 86095.44983085223,
+      "lr_embedding": 5.9999999999999995e-05,
+      "lr_attention": 0.004,
+      "lr_ffn": 0.004,
+      "lr_norm": 5.9999999999999995e-05
+    }
+  ],
+  "config": {
+    "name": "baseline",
+    "description": "Muon for 2D weight matrices, AdamW for embeddings & norms",
+    "max_steps": 20,
+    "batch_size": 16,
+    "hidden_size": 512,
+    "num_layers": 4,
+    "embedding_optimizer": "adamw",
+    "embedding_lr": 0.0003,
+    "attention_optimizer": "muon",
+    "attention_lr": 0.02,
+    "ffn_optimizer": "muon",
+    "ffn_lr": 0.02
+  },
+  "final_val_loss": 9.947413860483373,
+  "final_perplexity": 20898.107016618946,
+  "end_time": "2025-12-06T07:53:25.863587"
+}

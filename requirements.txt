@@ -3,3 +3,4 @@ torchtune
 transformers
 datasets
 numpy
+torchao

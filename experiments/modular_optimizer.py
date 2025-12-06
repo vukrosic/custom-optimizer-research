@@ -196,7 +196,11 @@ class ModularScheduler:
             if self.current_step < self.warmup_steps:
                 lr = base_lr * (self.current_step / self.warmup_steps)
             else:
-                progress = (self.current_step - self.warmup_steps) / (self.max_steps - self.warmup_steps)
+                # Handle edge case where warmup_steps equals max_steps
+                if self.max_steps <= self.warmup_steps:
+                    progress = 1.0
+                else:
+                    progress = (self.current_step - self.warmup_steps) / (self.max_steps - self.warmup_steps)
                 progress = min(1.0, progress)
                 lr = base_lr * 0.5 * (1 + torch.cos(torch.tensor(progress * 3.14159)).item())
             
