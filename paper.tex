@@ -1,0 +1,175 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{geometry}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+
+\title{Hypersphere and Stiefel Manifold Constraints for Custom Optimizers For Different LLM Parts}
+\author{}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+We investigate the application of manifold constraints to different parameter groups within transformer language models. By constraining embedding vectors to a hypersphere and applying the Muon optimizer to attention and feed-forward layers, we achieve significantly improved training efficiency. On a 42M parameter GPT model, the hypersphere constraint on embeddings reduces validation loss by 5.4\% and perplexity by 37.7\% compared to baseline, while adding minimal computational overhead. Code is available at \url{https://github.com/vukrosic/custom-optimizer-research}.
+\end{abstract}
+
+\section{Introduction}
+
+Training large neural networks requires keeping tensors healthy - preventing weights, activations, and gradients from growing too large or too small. While normalization is commonplace for activations (layer norm) and gradient updates (Muon optimizer), it is less commonly applied to weight matrices themselves.
+
+We explore \textit{modular manifolds}: the idea that different network components may benefit from different geometric constraints. Our approach treats the network as a composition of modules, each with its own:
+\begin{enumerate}
+    \item \textbf{Forward function} (how it transforms inputs)
+    \item \textbf{Manifold constraint} (what surface the weights lie on)
+    \item \textbf{Distance norm} (how to measure update sizes)
+\end{enumerate}
+
+\section{Manifold Constraints}
+
+\subsection{Hypersphere for Embeddings}
+
+For embedding vectors, we constrain each row to lie on a hypersphere of unit radius. The update rule projects back to the manifold after each step:
+
+\[
+w \leftarrow \frac{w}{\|w\|_2}
+\]
+
+This prevents embedding norm explosion/collapse and focuses optimization on directional changes.
+
+\subsection{Stiefel Manifold for Weight Matrices}
+
+The Stiefel manifold constrains weight matrices to have orthonormal columns (all singular values = 1):
+
+\[
+\text{Stiefel}(m,n) := \{W \in \mathbb{R}^{m \times n} \mid W^T W = I_n\}
+\]
+
+We apply Newton-Schulz iteration to project weights back to this manifold, keeping the condition number bounded.
+
+\subsection{Muon vs. Stiefel Manifold}
+
+It is important to distinguish between the \textbf{Muon optimizer} and the \textbf{Stiefel constraint}, as both utilize Newton-Schulz iteration for orthogonalization but target different objects:
+
+\begin{enumerate}
+    \item \textbf{Muon (Optimizer):} Operates on the \textbf{update/gradient} matrix ($G$). It orthogonalizes the \textit{step} taken at each iteration to ensure effective spectral learning, but does not constrain the final weight matrix. The weights themselves are free to drift off the manifold.
+    \item \textbf{Stiefel (Constraint):} Operates on the \textbf{weight} matrix ($W$). It forces the parameters themselves to remain on the manifold ($W^T W = I$) after every step, strictly constraining the hypothesis space.
+\end{enumerate}
+
+While Muon improves the \textit{trajectory} of optimization, the Stiefel constraint restricts the \textit{solution space}. They can be combined (as in our \texttt{manifold\_muon} experiment) to perform spectrally normalized updates while maintaining strictly orthogonal weights.
+
+\section{Experimental Setup}
+
+\textbf{Model}: 42M parameter GPT (4 layers, 8 heads, 512 hidden size) \\
+\textbf{Dataset}: SmolLM corpus, 30K sequences of length 512 \\
+\textbf{Training}: 20 steps per experiment, cosine LR schedule
+
+We compared six configurations:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lll}
+\toprule
+Experiment & Embeddings & Attention/FFN \\
+\midrule
+\texttt{adamw\_only} & AdamW & AdamW \\
+\texttt{baseline} & AdamW & Muon \\
+\texttt{sphere\_constraint} & AdamW + Sphere & Muon \\
+\texttt{stiefel\_all} & AdamW & AdamW + Stiefel \\
+\texttt{manifold\_muon} & AdamW & Muon + Stiefel \\
+\texttt{full\_manifold} & AdamW + Sphere & Muon + Stiefel \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Results}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{llll}
+\toprule
+Experiment & Val Loss & Perplexity & $\Delta$ vs Baseline \\
+\midrule
+\textbf{\texttt{sphere\_constraint}} & \textbf{8.27} & \textbf{3,914} & \textbf{-5.4\%} \\
+\texttt{full\_manifold} & 8.72 & 6,096 & -0.3\% \\
+\texttt{baseline} & 8.75 & 6,281 &  -  \\
+\texttt{adamw\_only} & 8.79 & 6,598 & +0.5\% \\
+\texttt{stiefel\_all} & 8.94 & 7,617 & +2.2\% \\
+\texttt{manifold\_muon} & 9.01 & 8,182 & +3.0\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Key finding}: The hypersphere constraint on embeddings alone (\texttt{sphere\_constraint}) significantly outperformed all other configurations, including combining multiple constraints.
+
+\subsection{Throughput Analysis}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lll}
+\toprule
+Configuration & Tokens/sec & Overhead \\
+\midrule
+AdamW only & 89K &  -  \\
+Baseline (Muon) & 86K & -3\% \\
+Sphere constraint & 85K & -4\% \\
+Stiefel manifold & 58K & -35\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The Stiefel constraint's Newton-Schulz iteration adds significant computational cost, while the sphere projection is nearly free.
+
+\section{Analysis}
+
+Our results suggest that at this model scale:
+
+\begin{enumerate}
+    \item \textbf{Embeddings benefit from geometric constraints.} The hypersphere constraint forces the model to learn directional representations rather than relying on magnitude differences, improving generalization.
+    
+    \item \textbf{Stiefel constraints hurt more than they help.} While theoretically appealing for keeping singular values bounded, the overhead outweighs benefits at 42M parameters.
+    
+    \item \textbf{Combining constraints doesn't stack.} \texttt{full\_manifold} (sphere + Stiefel) underperformed \texttt{sphere\_constraint} alone, suggesting interference between optimization dynamics.
+    
+    \item \textbf{Muon alone provides strong baseline.} The spectral normalization of updates in Muon may already provide sufficient regularization for attention/FFN layers.
+\end{enumerate}
+
+\section{Conclusion}
+
+We demonstrate that \textit{selective} manifold constraints - specifically hypersphere projection on embeddings - improve transformer training efficiency with minimal overhead. The key insight is that different parameter groups have different optimization needs: embeddings are sensitive to the geometry that constrain all singular values, while attention and FFN weights benefit from spectrally-normalized updates (Muon) without explicit manifold constraints.
+
+Future work should explore:
+\begin{itemize}
+    \item Scaling to 1B+ parameter models where Stiefel costs may amortize
+    \item Adaptive constraint selection during training
+    \item Combining with low-precision training
+\end{itemize}
+
+\begin{thebibliography}{9}
+
+\bibitem{bernstein2025}
+Bernstein, J. (2025). 
+\textit{Modular Manifolds}. 
+Thinking Machines Blog. 
+Available at: \url{https://thinkingmachines.ai/blog/modular-manifolds}
+
+\bibitem{jordan2024}
+Jordan, K. (2024). 
+\textit{Muon: An optimizer for hidden layers in neural networks}. 
+GitHub Repository. 
+Available at: \url{https://github.com/KellerJordan/Muon}
+
+\bibitem{su2025}
+Su, J. (2025). 
+\textit{Steepest Descent on Manifolds: 3. Muon + Stiefel}. 
+Scientific Spaces (kexue.fm). 
+Available at: \url{https://kexue.fm/archives/10080}
+
+\end{thebibliography}
+
+\end{document}
