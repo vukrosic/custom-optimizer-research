@@ -1,4 +1,4 @@
-# Modular Manifold Constraints for Efficient LLM Training
+# Custom Optimizers For Different LLM Parts
 
 ## Abstract
 
@@ -30,6 +30,15 @@ The Stiefel manifold constrains weight matrices to have orthonormal columns (all
 $$\text{Stiefel}(m,n) := \{W \in \mathbb{R}^{m \times n} \mid W^T W = I_n\}$$
 
 We apply Newton-Schulz iteration to project weights back to this manifold, keeping the condition number bounded.
+
+### 2.3 Muon vs. Stiefel Manifold
+
+It is important to distinguish between the **Muon optimizer** and the **Stiefel constraint**, as both utilize Newton-Schulz iteration for orthogonalization but target different objects:
+
+1.  **Muon (Optimizer):** Operates on the **update/gradient** matrix ($G$). It orthogonalizes the *step* taken at each iteration to ensure effective spectral learning, but does not constrain the final weight matrix. The weights themselves are free to drift off the manifold.
+2.  **Stiefel (Constraint):** Operates on the **weight** matrix ($W$). It forces the parameters themselves to remain on the manifold ($W^T W = I$) after every step, strictly constraining the hypothesis space.
+
+While Muon improves the *trajectory* of optimization, the Stiefel constraint restricts the *solution space*. They can be combined (as in our `manifold_muon` experiment) to perform spectrally normalized updates while maintaining strictly orthogonal weights.
 
 ## 3. Experimental Setup
 
