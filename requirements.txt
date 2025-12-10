@@ -4,3 +4,4 @@ transformers
 datasets
 numpy
 torchao
+matplotlib
