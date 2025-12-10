@@ -292,7 +292,7 @@ This is approximately **4.7× higher** than Adam's 19% rank utilization.
 ### 🔬 What This Means
 
 The Newton-Schulz orthonormalization in Muon:
-1. Spreads gradient information across nearly all available dimensions
+1. Spreads gradient information across nearly all available dimensions  
 2. Prevents gradient rank collapse during training
 3. Maintains maximum gradient diversity
 4. Leads to better convergence in transformer models
