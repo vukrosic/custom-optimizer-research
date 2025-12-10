@@ -215,3 +215,6 @@ __marimo__/
 
 # Cache
 data_cache/
+
+# Downloaded datasets
+experiments/data/

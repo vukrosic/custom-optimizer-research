@@ -449,7 +449,8 @@ def print_summary(results):
     # Best configuration
     print("\n🏆 Best Configuration:")
     best_acc = max(results.items(), key=lambda x: x[1]['test_acc'][-1])
-    print(f"  • Highest Test Accuracy: {{'adamw': 'AdamW', 'muon_ns3': 'Muon (3 NS)', 'muon_ns5': 'Muon (5 NS)'}[best_acc[0]]} ({best_acc[1]['test_acc'][-1]:.2f}%)")
+    config_labels = {'adamw': 'AdamW', 'muon_ns3': 'Muon (3 NS)', 'muon_ns5': 'Muon (5 NS)'}
+    print(f"  • Highest Test Accuracy: {config_labels[best_acc[0]]} ({best_acc[1]['test_acc'][-1]:.2f}%)")
     
     print("="*70)
 
