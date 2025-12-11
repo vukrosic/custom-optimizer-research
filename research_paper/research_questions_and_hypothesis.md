@@ -16,8 +16,3 @@ To understand the theoretical and practical underpinnings of the **Muon optimize
 ## 3. Scaling to Large Models (LLMs)
 **Question**: Do the matrix properties observed in MNIST (flat spectra, fast convergence) hold for high-dimensional Transformers?
 **Hypothesis**: The benefits of Muon will amplify at scale. In Deep Transformers, the "vanishing signal" problem is often linked to collapsing singular values. Muon's ability to maintain rank/flat spectra will lead to even greater relative speedups in LLM pre-training compared to small-scale vision tasks.
-
-## 4. The "Speed vs. Structure" Trade-off
-**Question**: Our MNIST results showed Muon converges fastest but AdamW achieved slightly higher final accuracy. Is there a fundamental trade-off between convergence speed (spectral normalization) and final generalization (rank collapse/feature compression)?
-**Hypothesis**: Steep singular value decay (as seen in AdamW) acts as a form of implicit regularization/feature selection that aids generalization. Muon's aggressive updates might prevent this beneficial compression.
-**Proposed Solution**: A hybrid schedule—starting with Muon for rapid feature learning and transitioning to AdamW/SGD for fine-grained feature compression—might yield the best of both worlds.

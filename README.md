@@ -1,4 +1,4 @@
 Check `research_paper` for more info. 
 
-python -m mnist.experiments.optimizer_comparison --epochs 5
- - Compares all optimizers on MNIST
+- For motivation read `research_paper/motivation.md`  
+- For research questions and hypotheses read `research_paper/research_questions_and_hypothesis.md`    
