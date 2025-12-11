@@ -1,5 +1,7 @@
 # Custom Optimizer Research
 
+Check the YouTube video explaining this repo and research:
+
 **[🎥 YouTube](https://youtu.be/sa52y23K1T4)** | **[💬 Discord](https://discord.gg/6AbXGpKTwN)**
 
 Research on optimizers for neural networks. Explores how and why Muon beats other optimizers like AdamW.
