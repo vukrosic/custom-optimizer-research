@@ -15,8 +15,8 @@ from torch.utils.data import Dataset, DataLoader
 from datasets import load_dataset
 from transformers import AutoTokenizer
 
-from config import ModelConfig, TrainingConfig
-from model import create_model
+from llm.training_config import ModelConfig, TrainingConfig
+from llm.model import create_model
 
 
 def set_seed(seed):

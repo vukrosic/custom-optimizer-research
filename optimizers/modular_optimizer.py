@@ -11,8 +11,8 @@ from typing import Dict, List, Any
 from dataclasses import dataclass
 import re
 
-from experiments.experiment_config import OptimizerConfig, ExperimentConfig
-from experiments.manifold_constraints import StiefelOptimizer, SpectralNormOptimizer, SphereOptimizer
+from optimizers.config import OptimizerConfig, ExperimentConfig
+from optimizers.manifold_constraints import StiefelOptimizer, SpectralNormOptimizer, SphereOptimizer
 
 
 @dataclass
@@ -99,9 +99,7 @@ class ModularOptimizer:
     
     def _create_optimizers(self):
         """Create an optimizer for each parameter group."""
-        import sys
-        sys.path.insert(0, '..')
-        from muon import Muon
+        from optimizers.muon import Muon
         
         for group_name, group in self.param_groups.items():
             if not group.params:
