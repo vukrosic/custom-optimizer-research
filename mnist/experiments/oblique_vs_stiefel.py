@@ -28,6 +28,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 from optimizers.oblique import ObliqueOptimizer
 from optimizers.l1_stiefel import StiefelOptimizer
+from optimizers.muon import Muon
 from mnist.common.models import MNISTNet
 
 def set_seed(seed=42):
@@ -99,16 +100,69 @@ def compute_geometric_metrics(matrix):
         'gram_matrix': gram.cpu().numpy() if gram.shape[0] <= 256 else None # Only save small grams
     }
 
+class MultiOptimizer:
+    """Wrapper to handle multiple optimizers (Muon for 2D, AdamW for others)."""
+    def __init__(self, optimizers):
+        self.optimizers = optimizers
+    
+    def zero_grad(self):
+        for opt in self.optimizers.values():
+            opt.zero_grad()
+    
+    def step(self):
+        for opt in self.optimizers.values():
+            opt.step()
+    
+    @property
+    def param_groups(self):
+        # Return param groups from all optimizers
+        groups = []
+        for opt in self.optimizers.values():
+            groups.extend(opt.param_groups)
+        return groups
+
 def train_network(optimizer_name, train_loader, test_loader, device, epochs=5):
     set_seed(42)
     model = MNISTNet(hidden_sizes=[256, 128]).to(device) # Smaller width for cleaner visualization
     
+    # Separate 2D matrices from other parameters
+    matrix_params = [p for p in model.parameters() if p.ndim >= 2]
+    other_params = [p for p in model.parameters() if p.ndim < 2]
+    
     if optimizer_name == 'oblique':
-        base_opt = torch.optim.AdamW(model.parameters(), lr=1e-3)
-        optimizer = ObliqueOptimizer(model.parameters(), base_opt)
+        # Muon for 2D matrices, wrapped with Oblique
+        muon_opt = Muon(matrix_params, lr=0.02, momentum=0.95)
+        oblique_opt = ObliqueOptimizer(matrix_params, muon_opt)
+        # AdamW for other parameters
+        adamw_opt = torch.optim.AdamW(other_params, lr=1e-3) if other_params else None
+        
+        optimizers = {'oblique': oblique_opt}
+        if adamw_opt:
+            optimizers['adamw'] = adamw_opt
+        optimizer = MultiOptimizer(optimizers)
+        
     elif optimizer_name == 'stiefel':
-        base_opt = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9)
-        optimizer = StiefelOptimizer(model.parameters(), base_opt)
+        # Muon for 2D matrices, wrapped with Stiefel
+        muon_opt = Muon(matrix_params, lr=0.02, momentum=0.95)
+        stiefel_opt = StiefelOptimizer(matrix_params, muon_opt)
+        # AdamW for other parameters
+        adamw_opt = torch.optim.AdamW(other_params, lr=1e-3) if other_params else None
+        
+        optimizers = {'stiefel': stiefel_opt}
+        if adamw_opt:
+            optimizers['adamw'] = adamw_opt
+        optimizer = MultiOptimizer(optimizers)
+    
+    elif optimizer_name == 'muon':
+        # Muon for 2D matrices (baseline, no manifold constraint)
+        muon_opt = Muon(matrix_params, lr=0.02, momentum=0.95)
+        # AdamW for other parameters
+        adamw_opt = torch.optim.AdamW(other_params, lr=1e-3) if other_params else None
+        
+        optimizers = {'muon': muon_opt}
+        if adamw_opt:
+            optimizers['adamw'] = adamw_opt
+        optimizer = MultiOptimizer(optimizers)
     
     history = {
         'loss': [],
@@ -154,13 +208,14 @@ def train_network(optimizer_name, train_loader, test_loader, device, epochs=5):
     
     return history
 
-def plot_comparison(oblique_hist, stiefel_hist):
+def plot_comparison(oblique_hist, stiefel_hist, muon_hist):
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
     
     # 1. Off-Diagonal Correlation (The main difference)
     ax = axes[0, 0]
     ax.plot(oblique_hist['off_diag_mean'], label='Oblique', color='blue')
     ax.plot(stiefel_hist['off_diag_mean'], label='Stiefel', color='green')
+    ax.plot(muon_hist['off_diag_mean'], label='Muon (baseline)', color='red', linestyle='--')
     ax.set_title("Off-Diagonal Correlation (Mean Abs Value)")
     ax.set_ylabel("Mean |<w_i, w_j>|")
     ax.set_xlabel("Step (x50)")
@@ -171,6 +226,7 @@ def plot_comparison(oblique_hist, stiefel_hist):
     ax = axes[0, 1]
     ax.plot(oblique_hist['sparsity'], label='Oblique', color='blue')
     ax.plot(stiefel_hist['sparsity'], label='Stiefel', color='green')
+    ax.plot(muon_hist['sparsity'], label='Muon (baseline)', color='red', linestyle='--')
     ax.set_title("Sparsity (Fraction of weights < 0.01)")
     ax.set_ylabel("Sparsity Fraction")
     ax.set_xlabel("Step (x50)")
@@ -181,6 +237,7 @@ def plot_comparison(oblique_hist, stiefel_hist):
     ax = axes[1, 0]
     ax.plot(oblique_hist['ortho_error'], label='Oblique', color='blue')
     ax.plot(stiefel_hist['ortho_error'], label='Stiefel', color='green')
+    ax.plot(muon_hist['ortho_error'], label='Muon (baseline)', color='red', linestyle='--')
     ax.set_title("Orthogonality Error ||W^T W - I||")
     ax.set_yscale('log')
     ax.legend()
@@ -196,9 +253,11 @@ def plot_comparison(oblique_hist, stiefel_hist):
     
     obl_vals = get_off_diag_values(oblique_hist['final_gram'])
     stf_vals = get_off_diag_values(stiefel_hist['final_gram'])
+    muon_vals = get_off_diag_values(muon_hist['final_gram'])
     
     ax.hist(obl_vals, bins=50, alpha=0.5, label='Oblique', color='blue', density=True)
     ax.hist(stf_vals, bins=50, alpha=0.5, label='Stiefel', color='green', density=True)
+    ax.hist(muon_vals, bins=50, alpha=0.5, label='Muon (baseline)', color='red', density=True, histtype='step')
     ax.set_title("Distribution of Column Correlations (Cosine Sim)")
     ax.set_xlabel("Cosine Similarity")
     ax.legend()
@@ -211,10 +270,11 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     train_loader, test_loader = get_mnist_loaders()
     
+    muon_res = train_network('muon', train_loader, test_loader, device)
     oblique_res = train_network('oblique', train_loader, test_loader, device)
     stiefel_res = train_network('stiefel', train_loader, test_loader, device)
     
-    plot_comparison(oblique_res, stiefel_res)
+    plot_comparison(oblique_res, stiefel_res, muon_res)
 
 if __name__ == "__main__":
     main()
