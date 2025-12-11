@@ -1,3 +1,9 @@
+## Questions for further research:
+
+Why does orthonormality error rise so much with maseline muon (in the image), does it mean that neurons are pointing in the same direction, redundant? overfitting?
+
+---
+
 # Oblique vs Stiefel Matrix Dynamics Experiment
 
 ## Overview
@@ -138,7 +144,3 @@ python oblique_vs_stiefel.py
 4. Analyze the relationship between sparsity and generalization
 5. Study the computational cost vs. benefit trade-offs
 
-
----
-
-Why does orthonormality error rise so much with maseline muon (in the image), does it mean that neurons are pointing in the same direction, redundant? overfitting?
