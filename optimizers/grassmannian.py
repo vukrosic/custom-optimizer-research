@@ -28,21 +28,34 @@ def grassmann_project(W: torch.Tensor) -> torch.Tensor:
         W: 2D tensor
         
     Returns:
-        Orthonormalized tensor representing the same subspace
+        Orthonormalized tensor representing the same subspace (SAME SHAPE as input)
     """
     if W.ndim != 2:
         return W
     
+    m, n = W.shape
+    
     # Use QR decomposition to get orthonormal representative
     try:
-        Q, R = torch.linalg.qr(W.float())
-        # Ensure consistent sign (canonical form)
-        signs = torch.sign(torch.diag(R))
-        signs[signs == 0] = 1
-        Q = Q * signs.unsqueeze(0)
-        return Q.to(W.dtype)
+        # For Grassmannian on columns, we want orthonormal columns
+        # QR gives Q with orthonormal columns, but may change shape
+        # We need to preserve the original shape
+        if m >= n:
+            # Tall/square: QR directly, take first n columns
+            Q, R = torch.linalg.qr(W.float(), mode='reduced')
+            # Ensure consistent sign (canonical form)
+            signs = torch.sign(torch.diag(R))
+            signs[signs == 0] = 1
+            Q = Q * signs.unsqueeze(0)
+            return Q.to(W.dtype)
+        else:
+            # Wide matrix: normalize rows instead to preserve shape
+            # Project to unit norm rows
+            norms = W.norm(dim=1, keepdim=True)
+            return W / (norms + 1e-8)
     except:
         return W
+
 
 
 def grassmann_log(W1: torch.Tensor, W2: torch.Tensor) -> torch.Tensor:
