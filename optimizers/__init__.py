@@ -21,7 +21,7 @@ from optimizers.oblique import ObliqueOptimizer, oblique_project
 from optimizers.grassmannian import GrassmannianOptimizer, grassmann_project
 from optimizers.block_stiefel import BlockStiefelOptimizer, block_stiefel_project
 from optimizers.sl_muon import SLMuonOptimizer, sl_project
-from optimizers.l1_stiefel import L1StiefelOptimizer
+from optimizers.l1_stiefel import StiefelOptimizer
 from optimizers.symplectic import SymplecticMuonOptimizer, is_symplectic
 from optimizers.doubly_stochastic import DoublyStochasticOptimizer, sinkhorn_normalize
 
@@ -41,7 +41,6 @@ __all__ = [
     'GrassmannianOptimizer',  # Subspace optimization
     'BlockStiefelOptimizer',  # Multi-head attention
     'SLMuonOptimizer',        # Volume-preserving (det=1)
-    'L1StiefelOptimizer',     # Sparse orthogonal
     'SymplecticMuonOptimizer',# Physics/Hamiltonian
     'DoublyStochasticOptimizer', # Permutation learning
     

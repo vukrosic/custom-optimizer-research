@@ -1,9 +1,9 @@
 """
-Oblique vs L1-Stiefel Matrix Dynamics Experiment
+Oblique vs Stiefel Matrix Dynamics Experiment
 
 This experiment specifically focuses on the geometric differences between:
 1. Oblique Optimizer (Unit-norm columns)
-2. L1-Stiefel Optimizer (Orthonormal columns + Sparsity)
+2. Stiefel Optimizer (Orthonormal columns)
 
 We track:
 - Orthogonality Error ||W^T W - I||_F
@@ -27,7 +27,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from optimizers.oblique import ObliqueOptimizer
-from optimizers.l1_stiefel import L1StiefelOptimizer
+from optimizers.l1_stiefel import StiefelOptimizer
 from mnist.common.models import MNISTNet
 
 def set_seed(seed=42):
@@ -108,7 +108,7 @@ def train_network(optimizer_name, train_loader, test_loader, device, epochs=5):
         optimizer = ObliqueOptimizer(model.parameters(), base_opt)
     elif optimizer_name == 'stiefel':
         base_opt = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9)
-        optimizer = L1StiefelOptimizer(model.parameters(), base_opt, l1_weight=1e-4) # Small L1
+        optimizer = StiefelOptimizer(model.parameters(), base_opt)
     
     history = {
         'loss': [],
@@ -160,7 +160,7 @@ def plot_comparison(oblique_hist, stiefel_hist):
     # 1. Off-Diagonal Correlation (The main difference)
     ax = axes[0, 0]
     ax.plot(oblique_hist['off_diag_mean'], label='Oblique', color='blue')
-    ax.plot(stiefel_hist['off_diag_mean'], label='L1-Stiefel', color='green')
+    ax.plot(stiefel_hist['off_diag_mean'], label='Stiefel', color='green')
     ax.set_title("Off-Diagonal Correlation (Mean Abs Value)")
     ax.set_ylabel("Mean |<w_i, w_j>|")
     ax.set_xlabel("Step (x50)")
@@ -170,7 +170,7 @@ def plot_comparison(oblique_hist, stiefel_hist):
     # 2. Sparsity
     ax = axes[0, 1]
     ax.plot(oblique_hist['sparsity'], label='Oblique', color='blue')
-    ax.plot(stiefel_hist['sparsity'], label='L1-Stiefel', color='green')
+    ax.plot(stiefel_hist['sparsity'], label='Stiefel', color='green')
     ax.set_title("Sparsity (Fraction of weights < 0.01)")
     ax.set_ylabel("Sparsity Fraction")
     ax.set_xlabel("Step (x50)")
@@ -180,7 +180,7 @@ def plot_comparison(oblique_hist, stiefel_hist):
     # 3. Orthogonality Error
     ax = axes[1, 0]
     ax.plot(oblique_hist['ortho_error'], label='Oblique', color='blue')
-    ax.plot(stiefel_hist['ortho_error'], label='L1-Stiefel', color='green')
+    ax.plot(stiefel_hist['ortho_error'], label='Stiefel', color='green')
     ax.set_title("Orthogonality Error ||W^T W - I||")
     ax.set_yscale('log')
     ax.legend()
@@ -198,7 +198,7 @@ def plot_comparison(oblique_hist, stiefel_hist):
     stf_vals = get_off_diag_values(stiefel_hist['final_gram'])
     
     ax.hist(obl_vals, bins=50, alpha=0.5, label='Oblique', color='blue', density=True)
-    ax.hist(stf_vals, bins=50, alpha=0.5, label='L1-Stiefel', color='green', density=True)
+    ax.hist(stf_vals, bins=50, alpha=0.5, label='Stiefel', color='green', density=True)
     ax.set_title("Distribution of Column Correlations (Cosine Sim)")
     ax.set_xlabel("Cosine Similarity")
     ax.legend()
