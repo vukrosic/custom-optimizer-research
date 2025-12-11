@@ -25,11 +25,8 @@ from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 import matplotlib.pyplot as plt
 import numpy as np
-import sys
-sys.path.append('..')
-
-from muon import Muon
-from experiments.manifold_constraints import (
+from optimizers.muon import Muon
+from optimizers.manifold_constraints import (
     SphereOptimizer, 
     StiefelOptimizer,
     sphere_project,

@@ -24,7 +24,7 @@ import numpy as np
 import sys
 sys.path.append('..')
 
-from muon import Muon
+from optimizers.muon import Muon
 
 
 def set_seed(seed=42):
