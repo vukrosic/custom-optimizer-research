@@ -1,0 +1,14 @@
+{
+  "name": "symplectic",
+  "epochs": [
+    {
+      "epoch": 1,
+      "loss": 0.2786667483284118,
+      "acc": 95.27
+    }
+  ],
+  "success": true,
+  "error": null,
+  "final_loss": 0.2786667483284118,
+  "final_acc": 95.27
+}

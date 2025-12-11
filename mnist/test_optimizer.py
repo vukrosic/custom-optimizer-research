@@ -87,6 +87,26 @@ def create_optimizer(model, name, device):
         base_opt = torch.optim.AdamW(params, lr=1e-3)
         return L1StiefelOptimizer(params, base_opt, l1_weight=0.0001, ns_steps=3)
     
+    elif name == 'sl_muon':
+        from optimizers.sl_muon import SLMuonOptimizer
+        base_opt = torch.optim.AdamW(params, lr=1e-3)
+        return SLMuonOptimizer(params, base_opt, ns_steps=3)
+    
+    elif name == 'symplectic':
+        from optimizers.symplectic import SymplecticMuonOptimizer
+        base_opt = torch.optim.AdamW(params, lr=1e-3)
+        return SymplecticMuonOptimizer(params, base_opt, cayley_steps=3)
+    
+    elif name == 'doubly_stochastic':
+        from optimizers.doubly_stochastic import DoublyStochasticOptimizer
+        base_opt = torch.optim.AdamW(params, lr=1e-3)
+        return DoublyStochasticOptimizer(params, base_opt, sinkhorn_iterations=10, temperature=1.0)
+    
+    elif name == 'block_stiefel':
+        from optimizers.block_stiefel import BlockStiefelOptimizer
+        base_opt = torch.optim.AdamW(params, lr=1e-3)
+        return BlockStiefelOptimizer(params, base_opt, num_heads=4, ns_steps=3)
+    
     else:
         raise ValueError(f"Unknown optimizer: {name}")
 
@@ -182,7 +202,8 @@ def save_results(results, output_dir='mnist/results/optimizer_comparison'):
 def main():
     parser = argparse.ArgumentParser(description='Test optimizers on MNIST')
     parser.add_argument('--optimizer', '-o', type=str, default='all',
-                        choices=['adamw', 'sgd', 'muon', 'oblique', 'grassmannian', 'l1_stiefel', 'all'],
+                        choices=['adamw', 'sgd', 'muon', 'oblique', 'grassmannian', 'l1_stiefel',
+                                 'sl_muon', 'symplectic', 'doubly_stochastic', 'block_stiefel', 'all'],
                         help='Optimizer to test')
     parser.add_argument('--epochs', '-e', type=int, default=2,
                         help='Number of epochs')
@@ -191,7 +212,8 @@ def main():
     args = parser.parse_args()
     
     if args.optimizer == 'all':
-        optimizers = ['adamw', 'sgd', 'muon', 'oblique', 'grassmannian', 'l1_stiefel']
+        optimizers = ['adamw', 'sgd', 'muon', 'oblique', 'grassmannian', 'l1_stiefel',
+                      'sl_muon', 'symplectic', 'doubly_stochastic', 'block_stiefel']
     else:
         optimizers = [args.optimizer]
     
