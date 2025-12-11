@@ -22,7 +22,8 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 import numpy as np
 import sys
-sys.path.append('..')
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from optimizers.muon import Muon
 

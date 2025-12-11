@@ -14,9 +14,13 @@ import torch.nn.functional as F
 import matplotlib.pyplot as plt
 from collections import defaultdict
 import sys
-sys.path.append('..')
+import os
 
-from muon import Muon, zeropower_via_newtonschulz5
+# Add project root to path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+from optimizers.muon import Muon, zeropower_via_newtonschulz5
+from mnist.common.metrics import effective_rank as compute_effective_rank
 
 
 # Simple 2-layer network for clean experiments

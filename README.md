@@ -1,35 +1,16 @@
-# Standard Attention LLM
+# Motivation
 
-Minimal GPT-style language model.
+Making any progress in neural network optimizers will have massive ripple effects on every AI / neural network in the world.
 
-## Quick Start
+This research aims to do exactly that.
 
-```bash
-pip install torch torchtune transformers datasets
+To come up with new optimizers, we shoudl focus on understanding why current ones work, as opposed to coming up with new ideas. Ideas will be a lot better once we understand why current ones work.
 
-python train.py
-```
+In this work we will do extensive experiments to gain practical and theoretical understanding of optimizers, especially why the new best Muon optimizer outperforms other optimizers.
 
-## Files
+We will use 2 experiments: MNIST and LLM. Each will have different optimizers or optimizer components applied and tested.
 
-- `model.py` - GPT model (attention + RoPE + SwiGLU)
-- `train.py` - Training with SmolLM dataset
-- `config.py` - Configuration
-
-## Options
-
-```bash
-python train.py --max_steps 500 --batch_size 8 --num_layers 4
-```
-
-# Run baseline (Muon for 2D, Adam for others)
-python experiments/run_experiments.py --exp baseline
-
-# Run sphere constraint comparison
-python experiments/run_experiments.py --exp sphere_constraint
-
-# Run both main experiments
-python experiments/run_experiments.py --exp baseline --exp sphere_constraint
-
-# Run all experiments
-python experiments/run_experiments.py --all
+1. AdamW
+2. Muon
+3. Manifold Muon
+4. Manifold Muon + Stiefel
