@@ -14,3 +14,7 @@ We will use 2 experiments: MNIST and LLM. Each will have different optimizers or
 2. Muon
 3. Manifold Muon
 4. Manifold Muon + Stiefel
+
+
+python -m mnist.experiments.optimizer_comparison --epochs 5
+ - Compares all optimizers on MNIST
