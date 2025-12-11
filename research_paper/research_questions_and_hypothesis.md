@@ -16,3 +16,5 @@ To understand the theoretical and practical underpinnings of the **Muon optimize
 ## 3. Scaling to Large Models (LLMs)
 **Question**: Do the matrix properties observed in MNIST (flat spectra, fast convergence) hold for high-dimensional Transformers?
 **Hypothesis**: The benefits of Muon will amplify at scale. In Deep Transformers, the "vanishing signal" problem is often linked to collapsing singular values. Muon's ability to maintain rank/flat spectra will lead to even greater relative speedups in LLM pre-training compared to small-scale vision tasks.
+
+## 4. Instead of using AdamW for vector embedding in LLMs, use hypersphere constraint, which is similar to muon but works with 1D vectors instead and makes them unit length
