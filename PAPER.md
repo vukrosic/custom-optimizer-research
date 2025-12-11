@@ -103,6 +103,12 @@ Our results suggest that at this model scale:
 3.  **Combining constraints doesn't stack.** `full_manifold` (sphere + Stiefel) underperformed `sphere_constraint` alone, suggesting interference between optimization dynamics.
 4.  **Muon alone provides strong baseline.** The spectral normalization of updates in Muon may already provide sufficient regularization for attention/FFN layers.
 
+### 5.1 Muon Gradient Rank Analysis
+
+![Gradient Rank Analysis](figures/mnist_rank_before_after_ns.png)
+
+As shown in the figure above, the Muon optimizer effectively "adds information" by increasing the rank of the update matrix. While standard optimizers like Adam can lead to vanishing ranks—where many directions in the gradient matrix become negligible, similar to the vanishing gradient problem—Muon revitalizes these directions. By orthonormalizing the update steps via Newton-Schulz iteration, Muon ensures that the update directions remain non-negligible and spectrally diverse, preventing the collapse of the optimization trajectory into a low-rank subspace.
+
 ## 6. Conclusion
 
 We demonstrate that *selective* manifold constraints - specifically hypersphere projection on embeddings - improve transformer training efficiency with minimal overhead. The key insight is that different parameter groups have different optimization needs: embeddings are sensitive to the geometry that constrain all singular values, while attention and FFN weights benefit from spectrally-normalized updates (Muon) without explicit manifold constraints.
