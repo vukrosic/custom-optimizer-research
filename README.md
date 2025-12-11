@@ -54,6 +54,5 @@ python mnist/test_optimizer.py --optimizer all --epochs 5
 ## Research Docs
 
 - [Motivation](research_paper/motivation.md)
-- [Research Questions](research_paper/research_questions_and_hypothesis.md)  
-- [Paper Draft](research_paper/PAPER.md)
+- [Research Questions](research_paper/research_questions_and_hypothesis.md) 
 - [MNIST Research Report](mnist/results/RESEARCH_REPORT.md)    
