@@ -88,8 +88,44 @@ experiments/
 └── ...
 ```
 
+## Understanding Experiments (New)
+
+### 4. Spectral Dynamics (`spectral_dynamics_experiment.py`) 🆕
+**Status**: New
+
+Full SVD tracking (beyond effective rank):
+- Complete singular value spectrum over training
+- Condition number dynamics
+- Top-k concentration ratios
+
+### 5. NS Transformation Analysis (`ns_transformation_experiment.py`) 🆕
+**Status**: New
+
+Deep analysis of Newton-Schulz:
+- Angular change between G and NS(G)
+- Information loss: ||G - NS(G)||_F / ||G||_F
+- Effect of varying NS steps (1, 2, 3, 5, 10)
+
+### 6. Per-Component Gradient Analysis (`component_gradient_experiment.py`) 🆕
+**Status**: New
+
+Which layers benefit from which optimizers:
+- Input/embedding layers vs hidden vs output
+- NS benefit ratio per component
+- Optimizer recommendations
+
+### 7. Modular LR Scaling (`modular_lr_scaling_experiment.py`) 🆕
+**Status**: New
+
+Layer-wise learning rate budgeting:
+- Depth-scaled LR strategies
+- Gradient norm-aware scaling
+- Adaptive LR per layer
+
+---
+
 ## Next Steps
-- [ ] Run modular optimizer experiment on MNIST
+- [ ] Run understanding experiments
 - [ ] Scale modular approach to larger models
 - [ ] Investigate adaptive constraint selection during training
 - [ ] Test with low-precision (fp16/bf16) training
