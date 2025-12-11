@@ -2,6 +2,10 @@
 
 Research on optimizers for neural networks. Explores how and why Muon beats other optimizers like AdamW.
 
+Main goal is understanding how the current best optimizers work, and to use that understanding to come up with new ideas.
+
+Experiments below are just one way of understanding it, but since this research in the early stages, we will make many changes. Your suggestions are welcome.
+
 Some ideas explored: how geometric constraints (Stiefel, Oblique, Symplectic, etc.) affect weight matrix transformations and training dynamics.
 
 ## Key Findings
