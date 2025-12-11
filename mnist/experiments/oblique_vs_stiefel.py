@@ -146,7 +146,7 @@ def train_network(optimizer_name, train_loader, test_loader, device, epochs=5):
                 
         avg_loss = train_loss / len(train_loader)
         history['loss'].append(avg_loss)
-        print(f"Epoch {epoch+1}: Loss {avg_loss:.4f} | Off-Diag {history['off_diag_mean'][-1]:.4f}")
+        print(f"Epoch {epoch+1}: Loss {avg_loss:.4f} | Off-Diag {history['off_diag_mean'][-1]:.4f} | Sparsity {history['sparsity'][-1]:.4f}")
         
     # Save final Gram matrix of first layer for histogram
     final_metrics = compute_geometric_metrics(model.network[0].weight)
