@@ -24,7 +24,10 @@ import sys
 import os
 
 # Add project root to path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+# Go up from: mnist/experiments/oblique_vs_stiefel_experiment/oblique_vs_stiefel.py
+# To: root/
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(0, project_root)
 
 from optimizers.oblique import ObliqueOptimizer
 from optimizers.l1_stiefel import StiefelOptimizer
@@ -42,8 +45,10 @@ def get_mnist_loaders(batch_size=128):
         transforms.ToTensor(),
         transforms.Normalize((0.1307,), (0.3081,))
     ])
-    train_dataset = datasets.MNIST('./data', train=True, download=True, transform=transform)
-    test_dataset = datasets.MNIST('./data', train=False, transform=transform)
+    # Use shared data folder in mnist/data
+    data_dir = os.path.join(project_root, 'mnist', 'data')
+    train_dataset = datasets.MNIST(data_dir, train=True, download=True, transform=transform)
+    test_dataset = datasets.MNIST(data_dir, train=False, transform=transform)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
     return train_loader, test_loader
@@ -121,9 +126,42 @@ class MultiOptimizer:
             groups.extend(opt.param_groups)
         return groups
 
+def normalize_initialization_scale(model, original_scale):
+    """Normalize weight scales after projection to match original initialization scale.
+    
+    This ensures fair comparison by making all optimizers start from similar
+    output scales, isolating the effect of learning dynamics rather than initialization.
+    """
+    # Get a sample input to measure output scale
+    sample_input = torch.randn(1, 784).to(next(model.parameters()).device)
+    
+    # Measure current output scale of first layer (after projection)
+    with torch.no_grad():
+        first_layer = model.network[0]
+        output = sample_input @ first_layer.weight.T
+        if first_layer.bias is not None:
+            output = output + first_layer.bias
+        current_scale = output.abs().mean().item()
+        
+        # Scale weights to match original scale
+        if current_scale > 1e-6:
+            scale_factor = original_scale / current_scale
+            first_layer.weight.data *= scale_factor
+            if first_layer.bias is not None:
+                first_layer.bias.data *= scale_factor
+
 def train_network(optimizer_name, train_loader, test_loader, device, epochs=5):
     set_seed(42)
     model = MNISTNet(hidden_sizes=[256, 128]).to(device) # Smaller width for cleaner visualization
+    
+    # Measure original output scale before any projection (for fair comparison)
+    sample_input = torch.randn(1, 784).to(device)
+    with torch.no_grad():
+        first_layer = model.network[0]
+        original_output = sample_input @ first_layer.weight.T
+        if first_layer.bias is not None:
+            original_output = original_output + first_layer.bias
+        original_scale = original_output.abs().mean().item()
     
     # Separate 2D matrices from other parameters
     matrix_params = [p for p in model.parameters() if p.ndim >= 2]
@@ -140,6 +178,8 @@ def train_network(optimizer_name, train_loader, test_loader, device, epochs=5):
         if adamw_opt:
             optimizers['adamw'] = adamw_opt
         optimizer = MultiOptimizer(optimizers)
+        # Normalize initialization scale to match baseline (fair comparison)
+        normalize_initialization_scale(model, original_scale)
         
     elif optimizer_name == 'stiefel':
         # Muon for 2D matrices, wrapped with Stiefel
@@ -152,6 +192,8 @@ def train_network(optimizer_name, train_loader, test_loader, device, epochs=5):
         if adamw_opt:
             optimizers['adamw'] = adamw_opt
         optimizer = MultiOptimizer(optimizers)
+        # Normalize initialization scale to match baseline (fair comparison)
+        normalize_initialization_scale(model, original_scale)
     
     elif optimizer_name == 'muon':
         # Muon for 2D matrices (baseline, no manifold constraint)
@@ -263,8 +305,9 @@ def plot_comparison(oblique_hist, stiefel_hist, muon_hist):
     ax.legend()
     
     plt.tight_layout()
-    plt.savefig('oblique_vs_stiefel_matrix_dynamics.png')
-    print("Saved plot to oblique_vs_stiefel_matrix_dynamics.png")
+    plot_path = os.path.join(os.path.dirname(__file__), 'oblique_vs_stiefel_matrix_dynamics.png')
+    plt.savefig(plot_path)
+    print(f"Saved plot to {plot_path}")
 
 def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
