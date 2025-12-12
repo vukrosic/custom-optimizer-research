@@ -13,7 +13,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchtune.modules import RotaryPositionalEmbeddings
 
-from llm.training_config import ModelConfig
+from llm.configs.training_config import ModelConfig
 
 
 class RMSNorm(nn.Module):

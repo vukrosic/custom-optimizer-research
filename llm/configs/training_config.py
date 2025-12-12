@@ -9,9 +9,9 @@ from dataclasses import dataclass
 class ModelConfig:
     """Model architecture configuration"""
     vocab_size: int = 50257
-    hidden_size: int = 768
-    num_layers: int = 6
-    num_heads: int = 12
+    hidden_size: int = 1024
+    num_layers: int = 12
+    num_heads: int = 16
     max_seq_len: int = 1024
     dropout: float = 0.1
     

@@ -14,49 +14,48 @@ Some ideas explored: how geometric constraints (Stiefel, Oblique, Symplectic, et
 
 ## Key Findings
 
-| Optimizer | MNIST Acc | Characteristic |
-|-----------|-----------|----------------|
-| **AdamW** | 97.69% | Reliable baseline |
-| **Oblique** | 97.64% | Unit-norm columns, lowest loss |
-| **Muon** | 96.96% | Fastest early convergence |
-| **L1-Stiefel** | 96.95% | Sparse orthogonal updates |
+Comprehensive experiments comparing optimization algorithms on large language models, focusing on gradient rank preservation and convergence dynamics.
 
-## Full Optimizer Comparison (5 epochs)
+**Current Focus**: Understanding how Muon and geometric manifold constraints affect LLM training dynamics.
 
-| Optimizer | Loss | Accuracy | Notes |
-|-----------|------|----------|-------|
-| **AdamW** | 0.043 | **97.87%** | Best accuracy |
-| **Block-Stiefel** | 0.045 | 97.80% | Block-orthogonal for multi-head attention |
-| **SL-Muon** | 0.055 | 97.48% | Volume-preserving (det=1) |
-| **Oblique** | **0.033** | 97.28% | Lowest loss, unit-norm columns |
-| **L1-Stiefel** | 0.113 | 97.07% | Sparse + orthogonal |
-| **SGD** | 0.099 | 96.91% | Baseline |
-| **Muon** | 0.082 | 96.90% | Newton-Schulz gradient orthogonalization |
-| **Symplectic** | 0.048 | 96.66% | Energy-preserving for physics |
-| Doubly-Stochastic | 1.60 | 39.21% | ⚠️ Designed for permutation learning |
-| Grassmannian | 125.4 | 11.35% | ❌ Bug - needs fix |
+## Optimizer Characteristics
+
+| Optimizer | Key Feature |
+|-----------|-------------|
+| **AdamW** | Reliable baseline with weight decay |
+| **Muon** | Newton-Schulz gradient orthogonalization |
+| **Oblique** | Unit-norm columns constraint |
+| **L1-Stiefel** | Sparse orthogonal updates |
+| **Block-Stiefel** | Block-orthogonal for multi-head attention |
+| **SL-Muon** | Volume-preserving (det=1) |
+| **Symplectic** | Energy-preserving for physics-inspired architectures |
 
 ## Quick Start
 
 ```bash
 pip install -r requirements.txt
 
-# Test a single optimizer
-python mnist/test_optimizer.py --optimizer muon --epochs 2
+# Run LLM gradient rank experiment
+python -m llm.experiments.llm_gradient_rank_experiment --max_steps 200
 
-# Run all optimizers
-python mnist/test_optimizer.py --optimizer all --epochs 5
+# Run spectral dynamics analysis
+python -m llm.experiments.llm_spectral_dynamics_experiment --optimizer muon
+
+# Run final comparison
+python -m llm.experiments.llm_final_comparison --max_steps 200
 ```
 
 ## Structure
 
 - `optimizers/` - Custom optimizer implementations (Muon, Oblique, SL-Muon, Symplectic, etc.)
-- `mnist/` - MNIST experiments and analysis
-- `llm/` - LLM-scale experiments
+- `llm/` - Large language model experiments and analysis
+  - `llm/common/` - Shared components (data, metrics, models)
+  - `llm/experiments/` - Comprehensive optimizer experiments
+  - `llm/configs/` - Model and training configurations
 - `research_paper/` - Motivation, hypotheses, and paper draft
 
 ## Research Docs
 
 - [Motivation](research_paper/motivation.md)
-- [Research Questions](research_paper/research_questions_and_hypothesis.md) 
-- [MNIST Research Report](mnist/results/RESEARCH_REPORT.md)    
+- [Research Questions](research_paper/research_questions_and_hypothesis.md)
+- [LLM Experiments](llm/experiments.md)
