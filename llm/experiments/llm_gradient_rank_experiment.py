@@ -19,9 +19,10 @@ from torch.utils.data import DataLoader
 from datasets import load_dataset
 from transformers import AutoTokenizer
 
-from config import ModelConfig, TrainingConfig
-from model import create_model
-from muon import Muon, zeropower_via_newtonschulz5
+from llm.configs.training_config import ModelConfig, TrainingConfig
+from llm.models.model import create_model
+from llm.common import zeropower_via_newtonschulz
+from optimizers.muon import Muon
 
 
 def set_seed(seed):
@@ -177,7 +178,7 @@ def train_with_tracking(optimizer_name, max_steps=200, track_interval=10, seed=4
                         
                         # For Muon, also track after NS
                         if optimizer_name == 'muon' and 'embedding' not in name:
-                            grad_ns = zeropower_via_newtonschulz5(grad.unsqueeze(0)).squeeze(0)
+                            grad_ns = zeropower_via_newtonschulz(grad.unsqueeze(0), steps=5).squeeze(0)
                             eff_rank_ns = effective_rank(grad_ns)
                             metrics[f'{short_name}_rank_ns'].append(eff_rank_ns)
                     except:
